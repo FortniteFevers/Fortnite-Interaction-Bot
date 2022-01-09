@@ -9,7 +9,7 @@ from discord.ext.commands import bot
 import json
 import requests
 
-testing_guilds = [926178688247140383]
+testing_guilds = []
 
 client = commands.Bot(command_prefix='............', intents=intents)
 client.remove_command('help')
@@ -169,4 +169,4 @@ async def showlocker(ctx):
                 )
                 await ctx.send('Sucesfully got into the API!')
 
-client.run('OTI5Nzk4NTQ5NTQ0MjQzMjMw.YdskYQ.aCfwzLhE8XTcyOidJ767fgLjcW4')
+client.run('TOKEN')
