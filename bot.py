@@ -9,11 +9,13 @@ from discord.ext.commands import bot
 import json
 import requests
 
-testing_guilds = []
+testing_guilds = [926178688247140383]
 
 client = commands.Bot(command_prefix='............', intents=intents)
 client.remove_command('help')
 slash = SlashCommand(client, sync_commands = True)
+
+headerslmao = {'Authorization': '60bcad5e-fe7c-4734-92a9-986b81f99444'}
 
 @client.event
 async def on_ready():
@@ -71,7 +73,8 @@ async def login(ctx, auth:str = None):
         
         list_ = []
         for i in json_object['auths']:
-            list_.append(f'{accountID}')
+            accountidlol = i['accountID']
+            list_.append(f'{accountidlol}')
         
         authornum = list_.count(accountID)
         if authornum == 0:
@@ -81,7 +84,7 @@ async def login(ctx, auth:str = None):
                 "token": f"{token}",
                 "authCode": f'{auth}',
                 "accountID": f"{accountID}",
-                "accountUsername": ""
+                "loadoutUUID": ""
             })
         else:
             json_object['token'] = str(token)
@@ -90,16 +93,8 @@ async def login(ctx, auth:str = None):
                     print('Found client :)')
                     i['token'] = token
 
-        a_file = open(f"auths.json", "w")
-        json.dump(json_object, a_file, indent = 4)
-
-        headerslmao = {'Authorization': '60bcad5e-fe7c-4734-92a9-986b81f99444'}
-        
         response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
         clientUsername = response.json()['data']['account']['name']
-        for i in json_object['auths']:
-            if i['DiscordauthorID'] == str(DiscordauthorID):
-                i['accountUsername'] = clientUsername
 
         response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
             "Authorization": f"Bearer {token}",
@@ -119,7 +114,14 @@ async def login(ctx, auth:str = None):
         embed.add_field(name='Created at', value=created)
         embed.add_field(name='Last updated', value=updated)
 
-        lockerdata = response.json()['profileChanges'][0]['profile']['items']['83dbbcea-d579-45b4-bfa7-24c19bc6d9fc']['attributes']['locker_slots_data']['slots']
+        loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['last_applied_loadout']
+        #for i in profileChanges[0].profile.stats.attributes.loadouts
+        for i in json_object['auths']:
+            if i['DiscordauthorID'] == str(DiscordauthorID):
+                print('Found client :)')
+                i['loadoutUUID'] = loadoutUUID
+
+        lockerdata = response.json()['profileChanges'][0]['profile']['items'][loadoutUUID]['attributes']['locker_slots_data']['slots']
         lockerskinID = lockerdata['Character']['items'][0]
         lockerskinID = lockerskinID.replace('AthenaCharacter:', '')
         response = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={lockerskinID}')
@@ -128,6 +130,9 @@ async def login(ctx, auth:str = None):
     
         #profileChanges[0].profile.items["b085ba91-2bdb-43c8-9a1a-01949ca040f9"]
         await ctx.send(embed=embed)
+        a_file = open(f"auths.json", "w")
+        json.dump(json_object, a_file, indent = 4)
+        
 
 def authenticate():
     a_file = open(f"auths.json", "r")
@@ -136,7 +141,6 @@ def authenticate():
 
 @slash.slash(name='showlocker', description='Shows the skins in your Fortnite locker', guild_ids=testing_guilds)
 async def showlocker(ctx):
-    print('nrij')
     a_file = open(f"auths.json", "r")
     json_object = json.load(a_file)
     a_file.close()
@@ -147,6 +151,7 @@ async def showlocker(ctx):
         if i['DiscordauthorID'] == str(DiscordauthorID):
             token = i['token']
             accountID = i['accountID']
+            loaduuid = i['loadoutUUID']
             response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json"
@@ -162,11 +167,54 @@ async def showlocker(ctx):
                 )
                 return await ctx.send(embed=embed)
             except:
-                lockerdata = response.json()['profileChanges'][0]['profile']['items']['83dbbcea-d579-45b4-bfa7-24c19bc6d9fc']['attributes']['locker_slots_data']['slots']
-
+                lockerdata = response.json()['profileChanges'][0]['profile']['items'][loaduuid]['attributes']['locker_slots_data']['slots']
+                
+                response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
+                
+                clientUsername = response.json()['data']['account']['name']
                 embed = discord.Embed(
-                    title='Your locker'
+                    color = discord.Colour.blue(),
+                    title=f"{clientUsername}'s locker"
                 )
                 await ctx.send('Sucesfully got into the API!')
 
-client.run('TOKEN')
+                lockerskinID = lockerdata['Character']['items'][0]
+                lockerskinID = lockerskinID.replace('AthenaCharacter:', '')
+                response = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={lockerskinID}')
+                skinname = response.json()['data']['name']
+
+                lockerbackpackID = lockerdata['Backpack']['items'][0]
+                lockerbackpackID = lockerbackpackID.replace('AthenaBackpack:', '')
+                if lockerbackpackID != '':
+                    response = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={lockerskinID}')
+                    backpack = response.json()['data']['name']
+                else:
+                    backpack = 'Empty'
+
+                emotes = ''
+                for i in lockerdata['Dance']['items']:
+                    emoteID = i.replace('AthenaDance:', '')
+                    response = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={emoteID}')
+                    name = response.json()['data']['name']
+                    emotes += f'{name}\n'
+
+
+                
+                embed.add_field(
+                    name='Current Skin',
+                    value=f'{skinname}'
+                )
+                
+                embed.add_field(
+                    name='Current Backpack',
+                    value=f'{backpack}'
+                )   
+
+                embed.add_field(
+                    name='Current Emotes',
+                    value=f'{emotes}'
+                )                                       
+
+                await ctx.send(embed=embed)
+
+client.run('')
