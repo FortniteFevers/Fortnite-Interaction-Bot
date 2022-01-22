@@ -1,4 +1,5 @@
 from cgi import test
+from re import template
 import discord
 from discord.ext.commands.core import guild_only
 intents = discord.Intents.default()
@@ -27,6 +28,11 @@ async def on_ready():
     await client.change_presence(activity=discord.Game(name="/help"))
     print("\nServers: " + str(len(client.guilds)))
     print("Bot is ready")
+
+@slash.slash(name='help', description='Help!')
+async def help(ctx):
+    await ctx.send('Login to our bot using **/login <auth>**. Type "/" for a list of commands.')
+
 
 @slash.slash(name='logout', description='Remove your Epic Games account from our system.', guild_ids=testing_guilds)
 async def logout(ctx):
@@ -79,7 +85,7 @@ async def login(ctx, auth:str = None):
         embed.set_footer(text='We recommend that you only log into accounts that you have email access to!')
 
         await ctx.send(embed=embed)
-    else:
+    else: # The real command
         response = requests.post('https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token', headers={
             "Content-Type": "application/x-www-form-urlencoded",
             "Authorization": f"basic ZWM2ODRiOGM2ODdmNDc5ZmFkZWEzY2IyYWQ4M2Y1YzY6ZTFmMzFjMjExZjI4NDEzMTg2MjYyZDM3YTEzZmM4NGQ="
@@ -109,11 +115,9 @@ async def login(ctx, auth:str = None):
 
         DiscordauthorID = ctx.author.id
 
-        for i in json_object['auths']:
-            if i['DiscordauthorID'] == str(DiscordauthorID):
-                i['token'] = f"{token}"
-                a_file = open(f"auths.json", "w")
-                json.dump(json_object, a_file, indent = 4)
+        for x in json_object['auths']:
+            if x['DiscordauthorID'] == str(DiscordauthorID):
+    
                 response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
                 try:
                     clientUsername = response.json()['data']['account']['name']
@@ -157,12 +161,18 @@ async def login(ctx, auth:str = None):
                 #profileChanges[0].profile.items["b085ba91-2bdb-43c8-9a1a-01949ca040f9"]
                 #await ctx.send('test')
                 await ctx.send(embed=embed)
+
+                x['loadoutUUID'] = f"{loadoutUUID}"
+                x['token'] = f"{token}"
+
+
+                a_file = open(f"auths.json", "w")
+                json.dump(json_object, a_file, indent = 4)
                 return await ctx.author.send('You are already logged in!\nI changed your token anyways, its now updated with a new one.')
         
         list_ = []
         try:
             for i in json_object['auths']:
-
                 accountidlol = i['accountID']
                 list_.append(f'{accountidlol}')
         except:
@@ -445,14 +455,8 @@ async def sac(ctx, code:str):
                     title = 'Changed Code!',
                     description=f'Successfully changed your Support-A-Creator Code to **"{sac}"**!'
                 )
+                print(f'Changed [{accountID}] SAC to {sac}')
                 await ctx.send(embed=embed)
-
-@client.event
-async def on_reaction_add(reaction, user):
-    if reaction.emoji == '👍':
-        print('Thumbs up!')
-    if reaction.emoji == '👎':
-        print('Thumbs down!')
 
 
 @slash.slash(name='gift', description='Gift an item thats currently in the shop!',options=[
@@ -500,11 +504,6 @@ async def gift(ctx, offerid:str, user:str, price:int):
             #await ctx.send('Loaded auth token!')
             token = i['token']
             accountID = i['accountID']
-            await ctx.send("hello", components = [
-                [Button(label="Hi", style="3", emoji = "🥴", custom_id="button1"), Button(label="Bye", style="4", emoji = "😔", custom_id="button2")]
-                ])
-            interaction = await client.wait_for("button_click", check = lambda i: i.custom_id == "button1")
-            await interaction.send(content = "Button clicked!", ephemeral=False)
             
             response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/GiftCatalogEntry?profileId=common_core',  json= {
                 "offerId": f"{offerid}",
@@ -532,8 +531,13 @@ async def gift(ctx, offerid:str, user:str, price:int):
                 )
                 return await ctx.send(embed=embed)
             except:
-
-                await ctx.send(f'Successfully gifted item to "{user_name}"!')
+                embed = discord.Embed(
+                    color = discord.Colour.green(),
+                    title = 'Gifted item!',
+                    description=f'Successfully gifted item to "{user_name}"!'
+                )
+                await ctx.send(embed=embed)
+                print(f'Gifted {offerid} to {user_id} - from {accountID}')
 
 @slash.slash(name='changeplatform', description='Changes the Mtx Platform used for purchases in the item shop.', options=[
     create_option(
@@ -612,9 +616,14 @@ async def changeplatform(ctx, platform:str):
                 "Content-Type": "application/json"
             }
             )
-            print(response.json())
+            #print(response.json())
+            embed = discord.Embed(
+                color = discord.Colour.green(),
+                title = 'MTX platform',
+                description=f'Changed Mtx Platform to "**{platform}**"!'
+            )
             return await ctx.send(
-                f'Changed Mtx Platform to "**{platform}**"!'
+                embed=embed
             )
 
 @slash.slash(name='offerids', description='Returns with a list of the current Offer IDs. Used to purchase/gift a cosmetic.', guild_ids=testing_guilds)
@@ -705,11 +714,71 @@ async def offerids(ctx):
     #await ctx.send(f'Hey there {ctx.message.author.mention}, here ya go!')
     await paginator.run()
 
-    await ctx.send(embed=embed)
+    #await ctx.send(embed=embed)
+
+@slash.slash(name='vbucks', description='View your current Fortnite V-Bucks amount and where it has came from', guild_ids=testing_guilds)
+async def vbucks(ctx):
+    a_file = open(f"auths.json", "r")
+    json_object = json.load(a_file)
+    a_file.close()
+
+    DiscordauthorID = ctx.author.id
+
+    for i in json_object['auths']:
+        if i['DiscordauthorID'] == str(DiscordauthorID):
+            #await ctx.send('Loaded auth token!')
+            token = i['token']
+            accountID = i['accountID']
+            name = i['accountName']
+            response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=common_core',  json= {
+                
+            }, headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            )
+
+            embed = discord.Embed(
+                color = discord.Colour.blue(),
+                title = f"{name}'s V-Bucks"
+            )
+
+            list_ = []
+            result = []
+            for i in response.json()['profileChanges'][0]['profile']['items']:
+                #print(i)
+                list_.append(i)
+            
+            for i in list_:
+                idlol = i
+
+                templateID = response.json()['profileChanges'][0]['profile']['items'][idlol]['templateId']
+                if templateID.startswith('Currency:'):
+                    #print(idlol)
+                    platform = response.json()['profileChanges'][0]['profile']['items'][idlol]['attributes']['platform']
+                    quantity = response.json()['profileChanges'][0]['profile']['items'][idlol]['quantity']
+                    counter = list_.count(idlol)
+                    if counter >=2 or counter == 1:
+                        #print(f'Found {quantity} on {platform}')
+                        embed.add_field(
+                            name=f'{platform}',
+                            value=f'<:vbuck1:934263403441193030> {quantity} '
+                        )
+                        result.append(quantity)
+            
+            Sum = sum(result)
+
+            embed.description=f'Current Amount: <:vbuck1:934263403441193030> **{Sum}**'
+
+
+            return await ctx.send(
+                embed=embed
+            )
+    
 
 @slash.slash(name="createbutton",
-             description='Create a manage account button in your server.',
-             guild_ids=testing_guilds)
+    description='Create a manage account button in your server.',
+    guild_ids=testing_guilds)
 async def createbutton(ctx):
 
   try:
@@ -726,10 +795,11 @@ async def createbutton(ctx):
 
     channel = client.get_channel(ctx.channel.id)
 
-    embed = discord.Embed(title='Manage your Clash Utils Account',
-                          description='Click the button below to get a DM from me to manage your **Clash Utils** account.\n'
-                                      'Make sure you have DM\'s **enabled** as the next steps will continue in DM\'s',
-                          colour=discord.Colour(0x2f3136))
+    embed = discord.Embed(
+        title='Manage your Clash Utils Account',
+        description='Click the button below to get a DM from me to manage your **Clash Utils** account.\nMake sure you have DM\'s **enabled** as the next steps will continue in DM\'s',
+        colour=discord.Colour(0x2f3136)
+        )
 
     await channel.send(embed=embed, components=[action_row])
 
@@ -738,13 +808,37 @@ async def createbutton(ctx):
   except Exception as e:
     await ctx.send(f'An error occurred: `{e}`', hidden=True)
 
-@client.event
-async def on_component(ctx):
 
-  if ctx.custom_id == 'account_button':
-    await manage_account(ctx)
 
-  else:
-    await ctx.send(f'You pressed {ctx.custom_id}!')
-
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 client.run('')
+
