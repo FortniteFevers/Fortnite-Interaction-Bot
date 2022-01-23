@@ -427,7 +427,7 @@ async def purchaseitem(ctx, offerid:str, price:int):
                     except:
                         codeused = None
                     
-
+                
                 embed = discord.Embed(
                     color = discord.Colour.blue(),
                     title="{accountName}'s Purchases",
@@ -866,17 +866,8 @@ async def info(ctx):
             xp = response.json()['profileChanges'][0]['profile']['stats']['attributes']['xp']
             lastupdated = response.json()['profileChanges'][0]['profile']['updated']
 
-            response2 = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"
-            }
-            )
+
             loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['loadouts'][0]
-            #for i in profileChanges[0].profile.stats.attributes.loadouts
-            for i in json_object['auths']:
-                if i['DiscordauthorID'] == str(DiscordauthorID):
-                    print('Found client :)')
-                    i['loadoutUUID'] = loadoutUUID
 
             lockerdata = response.json()['profileChanges'][0]['profile']['items'][loadoutUUID]['attributes']['locker_slots_data']['slots']
             lockerskinID = lockerdata['Character']['items'][0]
