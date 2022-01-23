@@ -1,18 +1,17 @@
-from cgi import test
-from re import template
-import discord
+import discord # pip install discord
 from discord.ext.commands.core import guild_only
 intents = discord.Intents.default()
 from discord.ext import commands, tasks
 
+# pip install -U discord-py-slash-command
 from discord_slash import SlashCommand, SlashContext
 from discord_slash.utils.manage_commands import create_choice, create_option
 from discord.ext.commands import bot
 from discord_slash.utils.manage_commands import create_option, create_permission, create_choice
 from discord_slash.model import ButtonStyle, SlashCommandPermissionType
 from discord_slash.utils import manage_components
+
 import json
-import interactions
 import requests
 
 testing_guilds = [926178688247140383]
@@ -63,7 +62,7 @@ async def logout(ctx):
         title='SUCCESS!',
         description='Your account has successfully been removed within our system. If you wish to use the bot again, please use **/login <auth>**'
     )
-    await ctx.send('Logged out of your account.')
+    await ctx.send(embed=embed)
     return await ctx.author.send('Sad to see you go!\nWe have removed your tokens from our system. If you wish to use the bot again, please use **/login <auth>**')
 
 
@@ -75,6 +74,7 @@ async def logout(ctx):
         required=False
     )
 ])
+#@commands.cooldown(1, 30, commands.BucketType.user)
 async def login(ctx, auth:str = None):
     if auth is None:
         embed = discord.Embed(
@@ -97,6 +97,7 @@ async def login(ctx, auth:str = None):
         )
         try:
             token = response.json()['access_token']
+            print(token)
         except:
             embed = discord.Embed(
                 color = discord.Colour.red(),
@@ -129,6 +130,17 @@ async def login(ctx, auth:str = None):
                     "Content-Type": "application/json"
                 }
                 )
+
+                try:
+                    error = response.json()['errorCode']
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title = 'LOGIN FAILED!',
+                        description=f'{error}'
+                    )
+                    return await ctx.send(embed=embed)
+                except:
+                    pass
                 
                 #print(response.json())
                 created = response.json()['profileChanges'][0]['profile']['created']
@@ -249,6 +261,11 @@ async def login(ctx, auth:str = None):
         a_file = open(f"auths.json", "w")
         json.dump(json_object, a_file, indent = 4)
         
+@login.error
+async def loginerror(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        em = discord.Embed(title=f"Slow it down bro!",description=f"Try again in {error.retry_after:.2f}s.", color=discord.Colour.red())
+        await ctx.send(embed=em)
 
 def authenticate():
     a_file = open(f"auths.json", "r")
@@ -315,7 +332,7 @@ async def showlocker(ctx):
                             if backendtype in i:
                                 i[backendtype].append(id)
 
-
+                #print(list_)
                 for i in list_:
                     backendtype = i['backendType']
                     cosmetics = ''
@@ -324,8 +341,12 @@ async def showlocker(ctx):
                             #print(i)
                             response = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={i}')
                             i = response.json()['data']['name']
+                            url = None
                             url = response.json()['data']['images']['icon']
-                        cosmetics += f'[{i}]({url})\n'
+                            cosmetics += f'[{i}]({url})\n'
+                        else:
+                            cosmetics += f"not sure"
+                        #cosmetics += f'[{i}]({url})\n'
                     if i != 'None':
                         embed.add_field(
                             name=backendtype,
@@ -787,14 +808,54 @@ async def vbucks(ctx):
                         result.append(quantity)
             
             Sum = sum(result)
-
+            
+            amountPurchased = len(response.json()['profileChanges'][0]['profile']['stats']['attributes']['mtx_purchase_history']['purchases'])
+            
             embed.description=f'Current Amount: <:vbuck1:934263403441193030> **{Sum}**'
+            embed.add_field(
+                name='Purchased Items',
+                value = f"{amountPurchased}"
+            )
 
 
             return await ctx.send(
                 embed=embed
             )
     
+
+
+@slash.slash(name="createbutton",
+    description='Create a manage account button in your server.',
+    guild_ids=testing_guilds)
+async def createbutton(ctx):
+
+  try:
+
+    buttons = [
+      manage_components.create_button(
+        style=ButtonStyle.blurple,
+        label="Manage your account",
+        custom_id='account_button'
+      )
+    ]
+
+    action_row = manage_components.create_actionrow(*buttons)
+
+    channel = client.get_channel(ctx.channel.id)
+
+    embed = discord.Embed(
+        title='Manage your Clash Utils Account',
+        description='Click the button below to get a DM from me to manage your **Clash Utils** account.\nMake sure you have DM\'s **enabled** as the next steps will continue in DM\'s',
+        colour=discord.Colour(0x2f3136)
+        )
+
+    await channel.send(embed=embed, components=[action_row])
+
+    await ctx.send('Embed created!', hidden=True)
+
+  except Exception as e:
+    await ctx.send(f'An error occurred: `{e}`', hidden=True)
+
 @slash.slash(name='info', description='Account Info', guild_ids=testing_guilds)
 async def info(ctx):
     a_file = open(f"auths.json", "r")
@@ -900,8 +961,6 @@ async def createbutton(ctx):
 
   except Exception as e:
     await ctx.send(f'An error occurred: `{e}`', hidden=True)
-
-
 
 #
 #
