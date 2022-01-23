@@ -156,7 +156,7 @@ async def login(ctx, auth:str = None):
                 embed.add_field(name='Created at', value=created)
                 embed.add_field(name='Last updated', value=updated)
 
-                loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['last_applied_loadout']
+                loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['loadouts'][0]
                 #for i in profileChanges[0].profile.stats.attributes.loadouts
                 for i in json_object['auths']:
                     if i['DiscordauthorID'] == str(DiscordauthorID):
@@ -240,7 +240,7 @@ async def login(ctx, auth:str = None):
         embed.add_field(name='Created at', value=created)
         embed.add_field(name='Last updated', value=updated)
 
-        loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['last_applied_loadout']
+        loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['loadouts'][0]
         #for i in profileChanges[0].profile.stats.attributes.loadouts
         for i in json_object['auths']:
             if i['DiscordauthorID'] == str(DiscordauthorID):
@@ -345,7 +345,7 @@ async def showlocker(ctx):
                             url = response.json()['data']['images']['icon']
                             cosmetics += f'[{i}]({url})\n'
                         else:
-                            cosmetics += f"not sure"
+                            pass
                         #cosmetics += f'[{i}]({url})\n'
                     if i != 'None':
                         embed.add_field(
@@ -823,39 +823,6 @@ async def vbucks(ctx):
             )
     
 
-
-@slash.slash(name="createbutton",
-    description='Create a manage account button in your server.',
-    guild_ids=testing_guilds)
-async def createbutton(ctx):
-
-  try:
-
-    buttons = [
-      manage_components.create_button(
-        style=ButtonStyle.blurple,
-        label="Manage your account",
-        custom_id='account_button'
-      )
-    ]
-
-    action_row = manage_components.create_actionrow(*buttons)
-
-    channel = client.get_channel(ctx.channel.id)
-
-    embed = discord.Embed(
-        title='Manage your Clash Utils Account',
-        description='Click the button below to get a DM from me to manage your **Clash Utils** account.\nMake sure you have DM\'s **enabled** as the next steps will continue in DM\'s',
-        colour=discord.Colour(0x2f3136)
-        )
-
-    await channel.send(embed=embed, components=[action_row])
-
-    await ctx.send('Embed created!', hidden=True)
-
-  except Exception as e:
-    await ctx.send(f'An error occurred: `{e}`', hidden=True)
-
 @slash.slash(name='info', description='Account Info', guild_ids=testing_guilds)
 async def info(ctx):
     a_file = open(f"auths.json", "r")
@@ -904,7 +871,7 @@ async def info(ctx):
                 "Content-Type": "application/json"
             }
             )
-            loadoutUUID = response2.json()['profileChanges'][0]['profile']['stats']['attributes']['last_applied_loadout']
+            loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['loadouts'][0]
             #for i in profileChanges[0].profile.stats.attributes.loadouts
             for i in json_object['auths']:
                 if i['DiscordauthorID'] == str(DiscordauthorID):
@@ -930,37 +897,7 @@ async def info(ctx):
             )
 
 
-@slash.slash(name="createbutton",
-    description='Create a manage account button in your server.',
-    guild_ids=testing_guilds)
-async def createbutton(ctx):
 
-  try:
-
-    buttons = [
-      manage_components.create_button(
-        style=ButtonStyle.blurple,
-        label="Manage your account",
-        custom_id='account_button'
-      )
-    ]
-
-    action_row = manage_components.create_actionrow(*buttons)
-
-    channel = client.get_channel(ctx.channel.id)
-
-    embed = discord.Embed(
-        title='Manage your Clash Utils Account',
-        description='Click the button below to get a DM from me to manage your **Clash Utils** account.\nMake sure you have DM\'s **enabled** as the next steps will continue in DM\'s',
-        colour=discord.Colour(0x2f3136)
-        )
-
-    await channel.send(embed=embed, components=[action_row])
-
-    await ctx.send('Embed created!', hidden=True)
-
-  except Exception as e:
-    await ctx.send(f'An error occurred: `{e}`', hidden=True)
 
 #
 #
