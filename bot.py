@@ -46,8 +46,8 @@ async def logout(ctx):
                 #del element['DiscordauthorID']
                 del element['token']
                 del element['accountID']
-                #del element['loadoutUUID']
-                #del element['']
+                del element['loadoutUUID']
+                del element['accountName']
         except:
             embed = discord.Embed(
                 color = discord.Colour.red(),
@@ -164,11 +164,13 @@ async def login(ctx, auth:str = None):
 
                 x['loadoutUUID'] = f"{loadoutUUID}"
                 x['token'] = f"{token}"
+                x['accountID'] = f"{accountID}"
+                x['accountName'] = f"{clientUsername}"
 
 
                 a_file = open(f"auths.json", "w")
                 json.dump(json_object, a_file, indent = 4)
-                return await ctx.author.send('You are already logged in!\nI changed your token anyways, its now updated with a new one.')
+                return await ctx.author.send('It looks like you are already logged in, or you are using the bot again after logging out!\nI changed your token anyways, its now updated with a new one.')
         
         list_ = []
         try:
