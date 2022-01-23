@@ -369,6 +369,7 @@ async def purchaseitem(ctx, offerid:str, price:int):
             #await ctx.send('Loaded auth token!')
             token = i['token']
             accountID = i['accountID']
+            accountName = i['accountName']
             response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/PurchaseCatalogEntry?profileId=common_core', json= {
                 "offerId": offerid,
                 "purchaseQuantity": 1,
@@ -392,7 +393,24 @@ async def purchaseitem(ctx, offerid:str, price:int):
                 )
                 return await ctx.send(embed=embed)
             except:
-                await ctx.send('Purchased item!')
+                data = response.json()['profileChanges'][0]['profile']['stats']['attributes']['mtx_purchase_history']['purchases']
+                for i in data:
+                    if i['offerId'] == offerid:
+                      result = len(i['lootResult'])
+                      vbuckspaid = i['totalMtxPaid']
+                      
+                    try:
+                        codeused = i['metadata']['mtx_affiliate']
+                    except:
+                        codeused = None
+                    
+
+                embed = discord.Embed(
+                    color = discord.Colour.blue(),
+                    title="{accountName}'s Purchases",
+                    description='Successfully purchased *{result} cosmetic(s)** for <:vbuck1:934263403441193030> {vbuckspaid}!\nCode used: **{codeused}**'
+                )
+                await ctx.send(embed=embed)
 
 @slash.slash(name='sac', description='Change your support-a-creator code!',options=[
     create_option(
@@ -775,6 +793,7 @@ async def vbucks(ctx):
                 embed=embed
             )
     
+
 
 @slash.slash(name="createbutton",
     description='Create a manage account button in your server.',
