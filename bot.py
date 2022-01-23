@@ -795,6 +795,78 @@ async def vbucks(ctx):
                 embed=embed
             )
     
+@slash.slash(name='info', description='Account Info', guild_ids=testing_guilds)
+async def info(ctx):
+    a_file = open(f"auths.json", "r")
+    json_object = json.load(a_file)
+    a_file.close()
+
+    DiscordauthorID = ctx.author.id
+
+    for i in json_object['auths']:
+        if i['DiscordauthorID'] == str(DiscordauthorID):
+            #await ctx.send('Loaded auth token!')
+            token = i['token']
+            accountID = i['accountID']
+            name = i['accountName']
+            response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json= {
+                
+            }, headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            )
+            print(response.json)
+            embed = discord.Embed(
+                color = discord.Colour.blue(),
+                title = f"{name}'s Account Info"
+            )
+
+            list_ = []
+            result = []
+            for i in response.json()['profileChanges'][0]['profile']['stats']:
+                #print(i)
+                list_.append(i)
+            
+            for i in list_:
+                idlol = i
+
+            #print(idlol)
+            level = response.json()['profileChanges'][0]['profile']['stats']['attributes']['book_level']
+            stars = response.json()['profileChanges'][0]['profile']['stats']['attributes']['battlestars']
+            accountlevel = response.json()['profileChanges'][0]['profile']['stats']['attributes']['accountLevel']
+            xp = response.json()['profileChanges'][0]['profile']['stats']['attributes']['xp']
+            lastupdated = response.json()['profileChanges'][0]['profile']['updated']
+
+            response2 = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            )
+            loadoutUUID = response2.json()['profileChanges'][0]['profile']['stats']['attributes']['last_applied_loadout']
+            #for i in profileChanges[0].profile.stats.attributes.loadouts
+            for i in json_object['auths']:
+                if i['DiscordauthorID'] == str(DiscordauthorID):
+                    print('Found client :)')
+                    i['loadoutUUID'] = loadoutUUID
+
+            lockerdata = response.json()['profileChanges'][0]['profile']['items'][loadoutUUID]['attributes']['locker_slots_data']['slots']
+            lockerskinID = lockerdata['Character']['items'][0]
+            lockerskinID = lockerskinID.replace('AthenaCharacter:', '')
+            response3 = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={lockerskinID}')
+            url = response3.json()['data']['images']['icon']
+
+
+
+            embed.set_thumbnail(url=url)
+            embed.add_field(name="Main: ", value=f"Level: {level} \n Battle Stars: {stars}")
+            embed.add_field(name="Misc: ", value=f"Account Level: {accountlevel} \n XP: {xp}")
+            embed.description=f'Last Updated:  {lastupdated}'
+
+
+            return await ctx.send(
+                embed=embed
+            )
 
 
 @slash.slash(name="createbutton",
