@@ -540,14 +540,14 @@ async def homebase(ctx, name:str):
                     embed = discord.Embed(
                         color = discord.Colour.red(),
                         title='ERROR',
-                        description='Sorry, the homebase name could not be changed.'
+                        description='Your token has most likely expired! Type /login <auth> to generate a new one.'
                     )
                     return await ctx.send(embed=embed)
                 else:
                     embed = discord.Embed(
                         color = discord.Colour.red(),
                         title='ERROR',
-                        description='Your token has most likely expired! Type /login <auth> to generate a new one.'
+                        description='Sorry, the homebase name could not be changed.\n\n\nKeep in mind that the max characters is 1-25'
                     )
                     return await ctx.send(embed=embed)
             except:
