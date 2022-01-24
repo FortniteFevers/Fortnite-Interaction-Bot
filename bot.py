@@ -5,6 +5,7 @@ from discord.ext import commands, tasks
 import PIL
 from PIL import Image
 import os
+import shutil
 
 # pip install -U discord-py-slash-command
 from discord_slash import SlashCommand, SlashContext
@@ -1051,6 +1052,13 @@ async def generate_profile(ctx):
 
 @slash.slash(name='generatelocker', description='Generates a custom image of your Fortnite Locker.', guild_ids=testing_guilds)
 async def generatelocker(ctx):
+    try:
+        shutil.rmtree('cache')
+        os.makedirs('cache')
+    except:
+        os.makedirs('cache')
+
+    await ctx.defer()
     a_file = open(f"auths.json", "r")
     json_object = json.load(a_file)
     a_file.close()
@@ -1062,6 +1070,7 @@ async def generatelocker(ctx):
             token = i['token']
             accountID = i['accountID']
             loaduuid = i['loadoutUUID']
+            accountName = i['accountName']
             response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json"
@@ -1077,6 +1086,7 @@ async def generatelocker(ctx):
                 )
                 return await ctx.send(embed=embed)
             except:
+                
                 lockerdata = response.json()['profileChanges'][0]['profile']['items'][loaduuid]['attributes']['locker_slots_data']['slots']
                 
                 response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
@@ -1086,7 +1096,7 @@ async def generatelocker(ctx):
                     color = discord.Colour.green(),
                     title=f"{clientUsername}'s current loadout"
                 )
-                message = await ctx.send('Loading locker...')
+                #message = await ctx.send('Loading locker...')
 
                 list_ = []
                 for i in lockerdata:
@@ -1113,24 +1123,29 @@ async def generatelocker(ctx):
 
             for i in list_:
                 backendType = i['backendType']
-                print(backendType)
+                #print(backendType)
 
                 if backendType == 'Character':
                     characterID = i[backendType][0]
                     fresponse = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={characterID}')
-                    url = fresponse.json()['data']['images']['featured']
-                    if fresponse.json()['data']['images']['featured'] == None:
-                        url = fresponse.json()['data']['images']['icon']
+                    furl = fresponse.json()['data']['images']['featured']
+                    iurl = fresponse.json()['data']['images']['icon']
                         
-                    print(characterID)
-                    try:
-                        r = requests.get(url, allow_redirects=True)
-                    except:
-                        r = requests.get('https://play-lh.googleusercontent.com/8ddL1kuoNUB5vUvgDVjYY3_6HwQcrg1K2fd_R8soD-e2QYj8fT9cfhfh3G0hnSruLKec')
+                    #print(characterID)
+                    if furl != None:
+                        r = requests.get(furl, allow_redirects=True)
+                    else:
+                        r = requests.get(iurl, allow_redirects=True)
+                    
                     open(f'{backendType}_icontemp.png', 'wb').write(r.content)
 
                     characterImage= Image.open(f'{backendType}_icontemp.png').resize((791,791),PIL.Image.ANTIALIAS).convert('RGBA')
                     background.paste(characterImage, (764, 144), characterImage)
+
+
+                    r = requests.get(iurl, allow_redirects=True)
+                    open(f'{backendType}_icontemp.png', 'wb').write(r.content)
+                    characterImage= Image.open(f'{backendType}_icontemp.png').convert('RGBA')
 
                     img=Image.new("RGB",(130,160))
                     img.paste(Image.open(f'{backendType}_icontemp.png').resize((130,130),PIL.Image.ANTIALIAS).convert('RGBA'), (0,0), Image.open(f'{backendType}_icontemp.png').resize((130,130),PIL.Image.ANTIALIAS).convert('RGBA'))
@@ -1161,15 +1176,28 @@ async def generatelocker(ctx):
                             img.save(f'cache/{backendType}_Locker{num}.png')
                             os.remove(f'{backendType}_icontemp.png')
                         else:
-                            x_value = 130
-                            y_value = 160
-                            icon_size = 130
-                            if backendType == 'Dance' or backendType == 'ItemWrap' or backendType == 'MusicPack' or backendType == 'LoadingScreen':
-                                x_value = 88
-                                y_value = 110
-                                icon_size = 88
-                            img=Image.new("RGB",(x_value,y_value))
-                            img.save(f'cache/{backendType}_Locker{num}.png')
+                            if backendType != 'Backpack':
+                                x_value = 130
+                                y_value = 160
+                                icon_size = 130
+                                if backendType == 'Dance' or backendType == 'ItemWrap' or backendType == 'MusicPack' or backendType == 'LoadingScreen':
+                                    x_value = 88
+                                    y_value = 110
+                                    icon_size = 88
+                                img=Image.new("RGB",(x_value,y_value))
+                                img.save(f'cache/{backendType}_Locker{num}.png')
+                            else:
+                                x_value = 130
+                                y_value = 160
+                                icon_size = 130
+
+                                url = 'https://media.discordapp.net/attachments/926178688767258706/935263849811161138/backpack_is_null.png?width=554&height=554'
+                                r = requests.get(url, allow_redirects=True)
+                                open(f'{backendType}_icontemp.png', 'wb').write(r.content)
+                                img=Image.new("RGB",(x_value,y_value))
+                                img.paste(Image.open(f'{backendType}_icontemp.png').resize((icon_size,icon_size),PIL.Image.ANTIALIAS).convert('RGBA'), (0,0), Image.open(f'{backendType}_icontemp.png').resize((icon_size,icon_size),PIL.Image.ANTIALIAS).convert('RGBA'))
+                                img.save(f'cache/{backendType}_Locker{num}.png')
+                                os.remove(f'{backendType}_icontemp.png')
                         
                         num += 1
 
@@ -1264,7 +1292,15 @@ async def generatelocker(ctx):
 
 
             background.save('test.png')
-            await ctx.send(file=discord.File('test.png'))
+
+            embed = discord.Embed(
+                title = f"{accountName}'s Fortnite BR Locker"
+            )
+            file = discord.File(f"test.png", filename="image.png")
+            embed.set_image(url="attachment://image.png")
+            embed.set_footer(text=f'Generated with the Fortnite Interactions discord bot')
+            await ctx.send(embed=embed, file=file)
+            #await ctx.send('Heres your generated locker image',file=discord.File('test.png'))
                 
 
 #
