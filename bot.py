@@ -504,6 +504,70 @@ async def sac(ctx, code:str):
                 print(f'Changed [{accountID}] SAC to {sac}')
                 await ctx.send(embed=embed)
 
+@slash.slash(name='homebase', description='Change your homebase name',options=[
+    create_option(
+        name='name',
+        description='Change Homebase Name',
+        option_type=3,
+        required=True
+    )
+], guild_ids=testing_guilds)
+async def homebase(ctx, name:str):
+    a_file = open(f"auths.json", "r")
+    json_object = json.load(a_file)
+    a_file.close()
+
+    DiscordauthorID = ctx.author.id
+
+    for i in json_object['auths']:
+        if i['DiscordauthorID'] == str(DiscordauthorID):
+            #await ctx.send('Loaded auth token!')
+            token = i['token']
+            accountID = i['accountID']
+            response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/SetHomebaseName?profileId=common_public',  json= {
+                "homebaseName": f"{name}"
+            }, headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            )
+            with open("data.json","w") as file:
+                file.write(json.dumps(response.json(), indent=4))
+            #print(response.json())
+            try:
+                error = response.json()['errorMessage']
+                if 'Sorry, the homebase name could not be changed' in error:
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title='ERROR',
+                        description='Sorry, the homebase name could not be changed.'
+                    )
+                    return await ctx.send(embed=embed)
+                else:
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title='ERROR',
+                        description='Your token has most likely expired! Type /login <auth> to generate a new one.'
+                    )
+                    return await ctx.send(embed=embed)
+            except:
+                name = response.json()['profileChanges'][0]['profile']['stats']['attributes']['homebase_name']
+                #print(sac)
+                #profileChanges[0].profile.stats.attributes.mtx_affiliate
+                if name.lower() != name.lower():
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title='ERROR',
+                        description='Could not change Homebase name.'
+                    )
+                    return await ctx.send(embed=embed)
+                embed = discord.Embed(
+                    color = discord.Colour.green(),
+                    title = 'Changed Homebase Name!',
+                    description=f'Successfully changed your Homebase name to **"{name}"**!'
+                )
+                print(f'Changed [{accountID}] Homebase name to {name}')
+                await ctx.send(embed=embed)
 
 @slash.slash(name='gift', description='Gift an item thats currently in the shop!',options=[
     create_option(
