@@ -2,6 +2,9 @@ import discord # pip install discord
 from discord.ext.commands.core import guild_only
 intents = discord.Intents.default()
 from discord.ext import commands, tasks
+import PIL
+from PIL import Image
+import os
 
 # pip install -U discord-py-slash-command
 from discord_slash import SlashCommand, SlashContext
@@ -361,6 +364,7 @@ async def showlocker(ctx):
 
                 await message.delete()
                 await ctx.send(embed=embed)
+                print(list_)
 
 
 @slash.slash(name='purchaseitem', description='Purchase an item from the current shop!',options=[
@@ -427,7 +431,7 @@ async def purchaseitem(ctx, offerid:str, price:int):
                     except:
                         codeused = None
                     
-                
+
                 embed = discord.Embed(
                     color = discord.Colour.blue(),
                     title="{accountName}'s Purchases",
@@ -888,7 +892,380 @@ async def info(ctx):
             )
 
 
+@slash.slash(name='equip', description='Equips a item that you currently own to a slot.', guild_ids=testing_guilds, options=[
+    create_option(
+        name='category',
+        description='The catagory of the item that you want to equip',
+        option_type=3,
+        required=True,
+        choices=[
+            create_choice(
+                name='Character',
+                value='Character'
+            ),
+            create_choice(
+                name='Dance',
+                value='Dance'
+            ),
+            create_choice(
+                name='Epic',
+                value='Epic'
+            ),
+            create_choice(
+                name='Glider',
+                value='Glider'
+            ),
+            create_choice(
+                name='Pickaxe',
+                value='Pickaxe'
+            ),
+            create_choice(
+                name='Backpack',
+                value='Backpack'
+            ),
+            create_choice(
+                name='LoadingScreen',
+                value='LoadingScreen'
+            ),
+            create_choice(
+                name='MusicPack',
+                value='MusicPack'
+            ),
+            create_choice(
+                name='ItemWrap',
+                value='ItemWrap'
+            ),
+            create_choice(
+                name='SkyDiveContrail',
+                value='SkyDiveContrail'
+            )
+        ]
+    ),
+    create_option(
+        name='cosmetic',
+        description='The cosmetic that you want to equip',
+        option_type=3,
+        required=True
+    )
+],)
+async def equip(ctx, category:str, cosmetic:str):
+    a_file = open(f"auths.json", "r")
+    json_object = json.load(a_file)
+    a_file.close()
 
+    DiscordauthorID = ctx.author.id
+
+    fresponse = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?name={cosmetic}')
+    cosmeticID = fresponse.json()['data']['id']
+    cosmeticName = fresponse.json()['data']['name']
+    cosmeticBT = fresponse.json()['data']['type']['backendValue']
+
+    for i in json_object['auths']:
+        if i['DiscordauthorID'] == str(DiscordauthorID):
+            #await ctx.send('Loaded auth token!')
+            token = i['token']
+            accountID = i['accountID']
+            name = i['accountName']
+            response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json= {
+                "lockerItem": "",
+                "category": f"{category}",
+                "itemToSlot": f"{cosmeticBT}:{cosmeticID}",
+                "slotIndex": 0,
+                "variantUpdates": [],
+                "optLockerUseCountOverride": -1
+            }, headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            )
+
+            embed = discord.Embed(
+                color = discord.Colour.green(),
+                title = 'Equiped Item!',
+                description= f'I have equiped the {cosmeticName} {category}.'
+            )
+            await ctx.send(embed=embed)
+
+@slash.slash(name='generate_profile',  description='Creates a json file of your current loadout', guild_ids=testing_guilds)
+async def generate_profile(ctx):
+    a_file = open(f"auths.json", "r")
+    json_object = json.load(a_file)
+    a_file.close()
+
+    DiscordauthorID = ctx.author.id
+
+    for i in json_object['auths']:
+        if i['DiscordauthorID'] == str(DiscordauthorID):
+            token = i['token']
+            accountID = i['accountID']
+            loaduuid = i['loadoutUUID']
+            response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                }
+            )
+            #print(response.json())
+            try:
+                error = response.json()['errorMessage']
+                embed = discord.Embed(
+                    color = discord.Colour.red(),
+                    title='ERROR',
+                    description='Your token has most likely expired! Type /login <auth> to generate a new one.'
+                )
+                return await ctx.send(embed=embed)
+            except:
+                lockerdata = response.json()['profileChanges'][0]['profile']['items'][loaduuid]['attributes']['locker_slots_data']['slots']
+                
+                response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
+                
+                clientUsername = response.json()['data']['account']['name']
+                embed = discord.Embed(
+                    color = discord.Colour.green(),
+                    title=f"{clientUsername}'s current loadout"
+                )
+                message = await ctx.send('Loading locker...')
+
+                list_ = []
+                for i in lockerdata:
+                    #print(i)
+                    backendtype = i
+                    type = lockerdata[i]
+                    list_.append({
+                        f'{i}': [],
+                        "backendType": backendtype
+                    })
+                    for i in type['items']:
+                        try:
+                            id = i.split(":").pop()
+                        except:
+                            i = ''
+                        if i == '':
+                            id = 'None'
+                        
+                        for i in list_:
+                            if backendtype in i:
+                                i[backendtype].append(id)
+
+                result = json.dumps(list_, indent=4, sort_keys=True)
+                await ctx.send(f'```json\n{result}```')
+
+@slash.slash(name='generatelocker', description='Generates a custom image of your Fortnite Locker.', guild_ids=testing_guilds)
+async def generatelocker(ctx):
+    a_file = open(f"auths.json", "r")
+    json_object = json.load(a_file)
+    a_file.close()
+
+    DiscordauthorID = ctx.author.id
+
+    for i in json_object['auths']:
+        if i['DiscordauthorID'] == str(DiscordauthorID):
+            token = i['token']
+            accountID = i['accountID']
+            loaduuid = i['loadoutUUID']
+            response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                }
+            )
+            #print(response.json())
+            try:
+                error = response.json()['errorMessage']
+                embed = discord.Embed(
+                    color = discord.Colour.red(),
+                    title='ERROR',
+                    description='Your token has most likely expired! Type /login <auth> to generate a new one.'
+                )
+                return await ctx.send(embed=embed)
+            except:
+                lockerdata = response.json()['profileChanges'][0]['profile']['items'][loaduuid]['attributes']['locker_slots_data']['slots']
+                
+                response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
+                
+                clientUsername = response.json()['data']['account']['name']
+                embed = discord.Embed(
+                    color = discord.Colour.green(),
+                    title=f"{clientUsername}'s current loadout"
+                )
+                message = await ctx.send('Loading locker...')
+
+                list_ = []
+                for i in lockerdata:
+                    #print(i)
+                    backendtype = i
+                    type = lockerdata[i]
+                    list_.append({
+                        f'{i}': [],
+                        "backendType": backendtype
+                    })
+                    for i in type['items']:
+                        try:
+                            id = i.split(":").pop()
+                        except:
+                            i = ''
+                        if i == '':
+                            id = 'None'
+                        
+                        for i in list_:
+                            if backendtype in i:
+                                i[backendtype].append(id)
+            
+            background=Image.open(f'background.png').convert('RGB')
+
+            for i in list_:
+                backendType = i['backendType']
+                print(backendType)
+
+                if backendType == 'Character':
+                    characterID = i[backendType][0]
+                    fresponse = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={characterID}')
+                    url = fresponse.json()['data']['images']['featured']
+                    if fresponse.json()['data']['images']['featured'] == None:
+                        url = fresponse.json()['data']['images']['icon']
+                        
+                    print(characterID)
+                    try:
+                        r = requests.get(url, allow_redirects=True)
+                    except:
+                        r = requests.get('https://play-lh.googleusercontent.com/8ddL1kuoNUB5vUvgDVjYY3_6HwQcrg1K2fd_R8soD-e2QYj8fT9cfhfh3G0hnSruLKec')
+                    open(f'{backendType}_icontemp.png', 'wb').write(r.content)
+
+                    characterImage= Image.open(f'{backendType}_icontemp.png').resize((791,791),PIL.Image.ANTIALIAS).convert('RGBA')
+                    background.paste(characterImage, (764, 144), characterImage)
+
+                    img=Image.new("RGB",(130,160))
+                    img.paste(Image.open(f'{backendType}_icontemp.png').resize((130,130),PIL.Image.ANTIALIAS).convert('RGBA'), (0,0), Image.open(f'{backendType}_icontemp.png').resize((130,130),PIL.Image.ANTIALIAS).convert('RGBA'))
+                    img.save(f'cache/{backendType}_Locker.png')
+                    os.remove(f'{backendType}_icontemp.png')
+                else:
+                    num = 1
+                    for x in i[backendType]:
+                        if x != "None":
+                            #print(x)
+                            fresponse = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={x}')
+                            url = fresponse.json()['data']['images']['featured']
+                            if fresponse.json()['data']['images']['featured'] == None:
+                                url = fresponse.json()['data']['images']['icon']
+                            r = requests.get(url, allow_redirects=True)
+                            open(f'{backendType}_icontemp.png', 'wb').write(r.content)
+
+                            x_value = 130
+                            y_value = 160
+                            icon_size = 130
+                            if backendType == 'Dance' or backendType == 'ItemWrap' or backendType == 'MusicPack' or backendType == 'LoadingScreen':
+                                x_value = 88
+                                y_value = 110
+                                icon_size = 88
+
+                            img=Image.new("RGB",(x_value,y_value))
+                            img.paste(Image.open(f'{backendType}_icontemp.png').resize((icon_size,icon_size),PIL.Image.ANTIALIAS).convert('RGBA'), (0,0), Image.open(f'{backendType}_icontemp.png').resize((icon_size,icon_size),PIL.Image.ANTIALIAS).convert('RGBA'))
+                            img.save(f'cache/{backendType}_Locker{num}.png')
+                            os.remove(f'{backendType}_icontemp.png')
+                        else:
+                            x_value = 130
+                            y_value = 160
+                            icon_size = 130
+                            if backendType == 'Dance' or backendType == 'ItemWrap' or backendType == 'MusicPack' or backendType == 'LoadingScreen':
+                                x_value = 88
+                                y_value = 110
+                                icon_size = 88
+                            img=Image.new("RGB",(x_value,y_value))
+                            img.save(f'cache/{backendType}_Locker{num}.png')
+                        
+                        num += 1
+
+            for i in list_:
+                backendType = i['backendType']
+
+                if backendType == 'Character':
+                    img = Image.open('cache/Character_Locker.png').convert('RGBA')
+                    background.paste(img, (68, 238), img)
+
+                elif backendType == 'Backpack':
+                    num = 1
+                    for file in os.listdir('cache'):
+                        if file.startswith(f'{backendType}_Locker'):
+                            img = Image.open(f'cache/{backendType}_Locker{num}.png').convert('RGBA')
+                            background.paste(img, (203, 238), img)
+
+                            num += 1
+
+                elif backendType == 'Pickaxe':
+                    num = 1
+                    for file in os.listdir('cache'):
+                        if file.startswith(f'{backendType}_Locker'):
+                            img = Image.open(f'cache/{backendType}_Locker{num}.png').convert('RGBA')
+                            background.paste(img, (340, 238), img)
+
+                            num += 1
+
+                elif backendType == 'Glider':
+                    num = 1
+                    for file in os.listdir('cache'):
+                        if file.startswith(f'{backendType}_Locker'):
+                            img = Image.open(f'cache/{backendType}_Locker{num}.png').convert('RGBA')
+                            background.paste(img, (476, 238), img)
+
+                            num += 1
+
+                elif backendType == 'SkyDiveContrail':
+                    num = 1
+                    for file in os.listdir('cache'):
+                        if file.startswith(f'{backendType}_Locker'):
+                            img = Image.open(f'cache/{backendType}_Locker{num}.png').convert('RGBA')
+                            background.paste(img, (611, 238), img)
+
+                            num += 1
+
+                elif backendType == 'ItemWrap':
+                    num = 1
+                    x_value = 68
+                    for file in os.listdir('cache'):
+                        if file.startswith(f'{backendType}_Locker'):
+                            img = Image.open(f'cache/{backendType}_Locker{num}.png').convert('RGBA')
+                            background.paste(img, (x_value, 525), img)
+
+                            num += 1
+                            x_value += 95
+
+
+                elif backendType == 'Dance':
+                    num = 1
+                    x_value = 68
+                    for file in os.listdir('cache'):
+                        if file.startswith(f'{backendType}_Locker'):
+                            img = Image.open(f'cache/{backendType}_Locker{num}.png').convert('RGBA')
+                            background.paste(img, (x_value, 407), img)
+
+                            num += 1
+                            x_value += 95
+
+                elif backendType == 'MusicPack':
+                    num = 1
+                    x_value = 163
+                    for file in os.listdir('cache'):
+                        if file.startswith(f'{backendType}_Locker'):
+                            img = Image.open(f'cache/{backendType}_Locker{num}.png').convert('RGBA')
+                            background.paste(img, (x_value, 643), img)
+
+                            num += 1
+                            x_value += 95
+
+                elif backendType == 'LoadingScreen':
+                    num = 1
+                    x_value = 260
+                    for file in os.listdir('cache'):
+                        if file.startswith(f'{backendType}_Locker'):
+                            img = Image.open(f'cache/{backendType}_Locker{num}.png').convert('RGBA')
+                            background.paste(img, (x_value, 643), img)
+
+                            num += 1
+                            x_value += 95
+
+
+
+            background.save('test.png')
+            await ctx.send(file=discord.File('test.png'))
+                
 
 #
 #
