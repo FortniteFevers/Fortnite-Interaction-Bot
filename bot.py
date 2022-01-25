@@ -3,7 +3,7 @@ from discord.ext.commands.core import guild_only
 intents = discord.Intents.default()
 from discord.ext import commands, tasks
 import PIL
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
 import os
 import shutil
 
@@ -161,9 +161,11 @@ async def login(ctx, auth:str = None):
                 embed.add_field(name='Last updated', value=updated)
 
                 loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['loadouts'][0]
+                print(loadoutUUID)
                 #for i in profileChanges[0].profile.stats.attributes.loadouts
                 for i in json_object['auths']:
                     if i['DiscordauthorID'] == str(DiscordauthorID):
+                        print('a')
                         print('Found client :)')
                         i['loadoutUUID'] = loadoutUUID
 
@@ -208,7 +210,7 @@ async def login(ctx, auth:str = None):
                 "accountName": ""
             })
             a_file = open(f"auths.json", "w")
-            json.dump(json_object, a_file, indent = 4)
+            #json.dump(json_object, a_file, indent = 4)
         else:
             json_object['token'] = str(token)
             for i in json_object['auths']:
@@ -218,6 +220,7 @@ async def login(ctx, auth:str = None):
                     i['accountID'] = f"{accountID}"
                     await ctx.author.send('Welcome back! I have just added the tokens to your new account.')
 
+        print('hello')
         response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
         try:
             clientUsername = response.json()['data']['account']['name']
@@ -235,7 +238,7 @@ async def login(ctx, auth:str = None):
         created = created[:10]
         updated = response.json()['profileChanges'][0]['profile']['updated']
         updated = updated[:10]
-
+        print('bruh')
         embed = discord.Embed(
             color = discord.Colour.red(),
             title=f'Welcome, {clientUsername}!'
@@ -251,6 +254,8 @@ async def login(ctx, auth:str = None):
                 print('Found client :)')
                 i['loadoutUUID'] = loadoutUUID
                 i['accountName'] = clientUsername
+                json.dump(json_object, a_file, indent = 4)
+                print('added stuff')
 
         lockerdata = response.json()['profileChanges'][0]['profile']['items'][loadoutUUID]['attributes']['locker_slots_data']['slots']
         lockerskinID = lockerdata['Character']['items'][0]
@@ -262,8 +267,8 @@ async def login(ctx, auth:str = None):
         #profileChanges[0].profile.items["b085ba91-2bdb-43c8-9a1a-01949ca040f9"]
         #await ctx.send('test')
         await ctx.send(embed=embed)
-        a_file = open(f"auths.json", "w")
-        json.dump(json_object, a_file, indent = 4)
+        #a_file = open(f"auths.json", "w")
+        #json.dump(json_object, a_file, indent = 4)
         
 @login.error
 async def loginerror(ctx, error):
@@ -504,70 +509,6 @@ async def sac(ctx, code:str):
                 print(f'Changed [{accountID}] SAC to {sac}')
                 await ctx.send(embed=embed)
 
-@slash.slash(name='homebase', description='Change your homebase name',options=[
-    create_option(
-        name='name',
-        description='Change Homebase Name',
-        option_type=3,
-        required=True
-    )
-], guild_ids=testing_guilds)
-async def homebase(ctx, name:str):
-    a_file = open(f"auths.json", "r")
-    json_object = json.load(a_file)
-    a_file.close()
-
-    DiscordauthorID = ctx.author.id
-
-    for i in json_object['auths']:
-        if i['DiscordauthorID'] == str(DiscordauthorID):
-            #await ctx.send('Loaded auth token!')
-            token = i['token']
-            accountID = i['accountID']
-            response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/SetHomebaseName?profileId=common_public',  json= {
-                "homebaseName": f"{name}"
-            }, headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"
-            }
-            )
-            with open("data.json","w") as file:
-                file.write(json.dumps(response.json(), indent=4))
-            #print(response.json())
-            try:
-                error = response.json()['errorMessage']
-                if 'Sorry, the homebase name could not be changed' in error:
-                    embed = discord.Embed(
-                        color = discord.Colour.red(),
-                        title='ERROR',
-                        description='Your token has most likely expired! Type /login <auth> to generate a new one.'
-                    )
-                    return await ctx.send(embed=embed)
-                else:
-                    embed = discord.Embed(
-                        color = discord.Colour.red(),
-                        title='ERROR',
-                        description='Sorry, the homebase name could not be changed.\n\n\nKeep in mind that the max characters is 1-25'
-                    )
-                    return await ctx.send(embed=embed)
-            except:
-                name = response.json()['profileChanges'][0]['profile']['stats']['attributes']['homebase_name']
-                #print(sac)
-                #profileChanges[0].profile.stats.attributes.mtx_affiliate
-                if name.lower() != name.lower():
-                    embed = discord.Embed(
-                        color = discord.Colour.red(),
-                        title='ERROR',
-                        description='Could not change Homebase name.'
-                    )
-                    return await ctx.send(embed=embed)
-                embed = discord.Embed(
-                    color = discord.Colour.green(),
-                    title = 'Changed Homebase Name!',
-                    description=f'Successfully changed your Homebase name to **"{name}"**!'
-                )
-                print(f'Changed [{accountID}] Homebase name to {name}')
-                await ctx.send(embed=embed)
 
 @slash.slash(name='gift', description='Gift an item thats currently in the shop!',options=[
     create_option(
@@ -1079,7 +1020,10 @@ async def generate_profile(ctx):
                 )
                 return await ctx.send(embed=embed)
             except:
-                lockerdata = response.json()['profileChanges'][0]['profile']['items'][loaduuid]['attributes']['locker_slots_data']['slots']
+                lockerdata = response.json()['profileChanges'][0]['profile']['items'][loaduuid]['attributes']
+
+                banner_icon_template = lockerdata['banner_icon_template']
+                banner_color_template = lockerdata['banner_color_template']
                 
                 response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
                 
@@ -1091,10 +1035,10 @@ async def generate_profile(ctx):
                 message = await ctx.send('Loading locker...')
 
                 list_ = []
-                for i in lockerdata:
+                for i in lockerdata['locker_slots_data']['slots']:
                     #print(i)
                     backendtype = i
-                    type = lockerdata[i]
+                    type = lockerdata['locker_slots_data']['slots'][i]
                     list_.append({
                         f'{i}': [],
                         "backendType": backendtype
@@ -1110,6 +1054,12 @@ async def generate_profile(ctx):
                         for i in list_:
                             if backendtype in i:
                                 i[backendtype].append(id)
+
+                list_.append({
+                    "banner_icon_template": banner_icon_template,
+                    "banner_color_template": banner_color_template,
+                    "backendType": "Banner"
+                })
 
                 result = json.dumps(list_, indent=4, sort_keys=True)
                 await ctx.send(f'```json\n{result}```')
@@ -1151,7 +1101,10 @@ async def generatelocker(ctx):
                 return await ctx.send(embed=embed)
             except:
                 
-                lockerdata = response.json()['profileChanges'][0]['profile']['items'][loaduuid]['attributes']['locker_slots_data']['slots']
+                lockerdata = response.json()['profileChanges'][0]['profile']['items'][loaduuid]['attributes']
+
+                banner_icon_template = lockerdata['banner_icon_template']
+                banner_color_template = lockerdata['banner_color_template']
                 
                 response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
                 
@@ -1160,13 +1113,12 @@ async def generatelocker(ctx):
                     color = discord.Colour.green(),
                     title=f"{clientUsername}'s current loadout"
                 )
-                #message = await ctx.send('Loading locker...')
 
                 list_ = []
-                for i in lockerdata:
+                for i in lockerdata['locker_slots_data']['slots']:
                     #print(i)
                     backendtype = i
-                    type = lockerdata[i]
+                    type = lockerdata['locker_slots_data']['slots'][i]
                     list_.append({
                         f'{i}': [],
                         "backendType": backendtype
@@ -1182,18 +1134,28 @@ async def generatelocker(ctx):
                         for i in list_:
                             if backendtype in i:
                                 i[backendtype].append(id)
+
+                #list_.append({
+                #    "banner_icon_template": banner_icon_template,
+                #    "banner_color_template": banner_color_template,
+                #    "backendType": "Banner"
+                #})
             
             background=Image.open(f'background.png').convert('RGB')
-
+            rarityfile = open(f"auths.json", "r")
+            rarityresponse = json.load(rarityfile)
+            rarityfile.close()
             for i in list_:
                 backendType = i['backendType']
                 #print(backendType)
 
                 if backendType == 'Character':
+                    # Character featured icon:
                     characterID = i[backendType][0]
                     fresponse = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={characterID}')
                     furl = fresponse.json()['data']['images']['featured']
                     iurl = fresponse.json()['data']['images']['icon']
+                    irarity = fresponse.json()['data']['rarity']['value']
                         
                     #print(characterID)
                     if furl != None:
@@ -1205,25 +1167,34 @@ async def generatelocker(ctx):
 
                     characterImage= Image.open(f'{backendType}_icontemp.png').resize((791,791),PIL.Image.ANTIALIAS).convert('RGBA')
                     background.paste(characterImage, (764, 144), characterImage)
+                    ###############################
 
-
+                    # Character locker icon:
+                    
                     r = requests.get(iurl, allow_redirects=True)
                     open(f'{backendType}_icontemp.png', 'wb').write(r.content)
                     characterImage= Image.open(f'{backendType}_icontemp.png').convert('RGBA')
 
                     img=Image.new("RGB",(130,160))
+                    
+                    # Rarity Paste
+                    rarityimg = Image.open(f'rarities/{irarity}.png').resize((130,160),PIL.Image.ANTIALIAS).convert('RGBA')
+                    img.paste(rarityimg, (0,0), rarityimg)
+                        
+
+
                     img.paste(Image.open(f'{backendType}_icontemp.png').resize((130,130),PIL.Image.ANTIALIAS).convert('RGBA'), (0,0), Image.open(f'{backendType}_icontemp.png').resize((130,130),PIL.Image.ANTIALIAS).convert('RGBA'))
                     img.save(f'cache/{backendType}_Locker.png')
                     os.remove(f'{backendType}_icontemp.png')
+                    ########################
                 else:
                     num = 1
                     for x in i[backendType]:
                         if x != "None":
                             #print(x)
                             fresponse = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={x}')
-                            url = fresponse.json()['data']['images']['featured']
-                            if fresponse.json()['data']['images']['featured'] == None:
-                                url = fresponse.json()['data']['images']['icon']
+                            irarity = fresponse.json()['data']['rarity']['value']
+                            url = fresponse.json()['data']['images']['icon']
                             r = requests.get(url, allow_redirects=True)
                             open(f'{backendType}_icontemp.png', 'wb').write(r.content)
 
@@ -1236,6 +1207,10 @@ async def generatelocker(ctx):
                                 icon_size = 88
 
                             img=Image.new("RGB",(x_value,y_value))
+                            # Rarity Paste
+                            rarityimg = Image.open(f'rarities/{irarity}.png').resize((x_value,y_value),PIL.Image.ANTIALIAS).convert('RGBA')
+                            img.paste(rarityimg, (0,0), rarityimg)
+
                             img.paste(Image.open(f'{backendType}_icontemp.png').resize((icon_size,icon_size),PIL.Image.ANTIALIAS).convert('RGBA'), (0,0), Image.open(f'{backendType}_icontemp.png').resize((icon_size,icon_size),PIL.Image.ANTIALIAS).convert('RGBA'))
                             img.save(f'cache/{backendType}_Locker{num}.png')
                             os.remove(f'{backendType}_icontemp.png')
@@ -1264,6 +1239,23 @@ async def generatelocker(ctx):
                                 os.remove(f'{backendType}_icontemp.png')
                         
                         num += 1
+            bruhhhhhh = requests.get('https://fortnite-api.com/v1/banners')
+            url = None
+            for i in bruhhhhhh.json()['data']:
+                if i['id'].lower() == banner_icon_template.lower():
+                    url = i['images']['icon']
+                
+            #url = banner_icon_template
+            r = requests.get(url, allow_redirects=True)
+            open(f'cache/Banner_icontemp.png', 'wb').write(r.content)
+            img=Image.new("RGB",(88,110))
+            img.paste(Image.open(f'cache/Banner_icontemp.png').resize((88,88),PIL.Image.ANTIALIAS).convert('RGBA'), (0,0), Image.open(f'cache/Banner_icontemp.png').resize((88,88),PIL.Image.ANTIALIAS).convert('RGBA'))
+            img.save(f'cache/Banner_Locker.png')
+            os.remove(f'cache/Banner_icontemp.png')
+
+            img = Image.open(f'cache/Banner_Locker.png').convert('RGBA')
+            background.paste(img, (68, 643), img)
+            
 
             for i in list_:
                 backendType = i['backendType']
@@ -1353,7 +1345,43 @@ async def generatelocker(ctx):
                             num += 1
                             x_value += 95
 
+                
 
+            response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=common_core',  json= {
+                
+            }, headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            )
+
+            list_ = []
+            result = []
+            for i in response.json()['profileChanges'][0]['profile']['items']:
+                #print(i)
+                list_.append(i)
+            
+            for i in list_:
+                idlol = i
+
+                templateID = response.json()['profileChanges'][0]['profile']['items'][idlol]['templateId']
+                if templateID.startswith('Currency:'):
+                    #print(idlol)
+                    platform = response.json()['profileChanges'][0]['profile']['items'][idlol]['attributes']['platform']
+                    quantity = response.json()['profileChanges'][0]['profile']['items'][idlol]['quantity']
+                    counter = list_.count(idlol)
+                    #if counter >=2 or counter == 1:
+                    result.append(quantity)
+            
+            Sum = sum(result)
+
+            loadFont = 'fonts/BurbankSmall-Bold.otf'
+            draw=ImageDraw.Draw(background)
+
+            font=ImageFont.truetype(loadFont,30)
+            draw.text((1641,36),f"{Sum}",font=font,fill=(15, 194, 255)) # Writes VBucks sum
+
+            draw.text((126,38),f"{accountName}'s Locker",font=font,fill='white') # Writes name
 
             background.save('test.png')
 
