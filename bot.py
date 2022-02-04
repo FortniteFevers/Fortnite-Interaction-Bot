@@ -15,6 +15,9 @@ from discord_slash.utils.manage_commands import create_option, create_permission
 from discord_slash.model import ButtonStyle, SlashCommandPermissionType
 from discord_slash.utils import manage_components
 
+import interactions
+from interactions import Button, ButtonStyle, SelectOption, SelectMenu
+
 import json
 import requests
 
@@ -37,7 +40,7 @@ async def help(ctx):
     await ctx.send('Login to our bot using **/login <auth>**. Type "/" for a list of commands.')
 
 
-@slash.slash(name='logout', description='Remove your Epic Games account from our system.', guild_ids=testing_guilds)
+@slash.slash(name='logout', description='Remove your Epic Games account from our system.', guild_ids=testing_guilds) # Logout command removes everything except discord author ID
 async def logout(ctx):
     a_file = open(f"auths.json", "r")
     json_object = json.load(a_file)
@@ -90,18 +93,22 @@ async def login(ctx, auth:str = None):
 
         await ctx.send(embed=embed)
     else: # The real command
+
+        # Code below generates a epic auth token
         response = requests.post('https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token', headers={
             "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": f"basic ZWM2ODRiOGM2ODdmNDc5ZmFkZWEzY2IyYWQ4M2Y1YzY6ZTFmMzFjMjExZjI4NDEzMTg2MjYyZDM3YTEzZmM4NGQ="
+            "Authorization": f"basic ZWM2ODRiOGM2ODdmNDc5ZmFkZWEzY2IyYWQ4M2Y1YzY6ZTFmMzFjMjExZjI4NDEzMTg2MjYyZDM3YTEzZmM4NGQ=" # Auth provided by M1
         },
         data={
             "grant_type": "authorization_code",
             "code": auth
         }
         )
+
+
         try:
             token = response.json()['access_token']
-            print(token)
+            print('Generated new token for account')
         except:
             embed = discord.Embed(
                 color = discord.Colour.red(),
@@ -112,7 +119,7 @@ async def login(ctx, auth:str = None):
         accountID = response.json()['account_id']
 
         #await ctx.send(f"Generated auth token. Expires at {response.json()['expires_at']}")
-        await ctx.author.send(f"I have just generated a new token for you.\nThis token Expires at {response.json()['expires_at']}")
+        await ctx.author.send(f"I have just generated a new token for you.\nThis token Expires at {response.json()['expires_at']}") # Sends a DM to the author (success)
 
         a_file = open(f"auths.json", "r")
         json_object = json.load(a_file)
@@ -120,6 +127,7 @@ async def login(ctx, auth:str = None):
 
         DiscordauthorID = ctx.author.id
 
+        # Checks the auths array to see if discord author ID is in it. If it is, the bot will refresh the token and notice it.
         for x in json_object['auths']:
             if x['DiscordauthorID'] == str(DiscordauthorID):
     
@@ -154,7 +162,7 @@ async def login(ctx, auth:str = None):
 
                 embed = discord.Embed(
                     color = discord.Colour.red(),
-                    title=f'Welcome, {clientUsername}!'
+                    title=f'Welcome back, {clientUsername}!'
                 )
                 embed.add_field(name='Account ID', value=f'{accountID}')
                 embed.add_field(name='Created at', value=created)
@@ -190,55 +198,42 @@ async def login(ctx, auth:str = None):
                 json.dump(json_object, a_file, indent = 4)
                 return await ctx.author.send('It looks like you are already logged in, or you are using the bot again after logging out!\nI changed your token anyways, its now updated with a new one.')
         
-        list_ = []
-        try:
-            for i in json_object['auths']:
-                accountidlol = i['accountID']
-                list_.append(f'{accountidlol}')
-        except:
-            pass
-        
-        authornum = list_.count(accountID)
-        if authornum == 0:
-            await ctx.author.send('Thank you for using our bot for the first time. You are now added into our system.')
-            json_object['auths'].append({
-                "DiscordauthorID": f"{DiscordauthorID}",
-                "token": f"{token}",
-                #"authCode": f'{auth}',
-                "accountID": f"{accountID}",
-                "loadoutUUID": "",
-                "accountName": ""
-            })
-            a_file = open(f"auths.json", "w")
-            #json.dump(json_object, a_file, indent = 4)
-        else:
-            json_object['token'] = str(token)
-            for i in json_object['auths']:
-                if i['DiscordauthorID'] == str(DiscordauthorID):
-                    print('Found client :)')
-                    i['token'] = token
-                    i['accountID'] = f"{accountID}"
-                    await ctx.author.send('Welcome back! I have just added the tokens to your new account.')
+        # Below is if a user uses the bot for the first time.
 
-        print('hello')
+        await ctx.author.send('Thank you for using our bot for the first time. You are now added into our system.')
+
+        # Below dumps all data except loadout UUID and account name. We will dump it later.
+        json_object['auths'].append({
+            "DiscordauthorID": f"{DiscordauthorID}",
+            "token": f"{token}",
+            #"authCode": f'{auth}',
+            "accountID": f"{accountID}",
+            "loadoutUUID": "",
+            "accountName": ""
+        })
+        a_file = open(f"auths.json", "w")
+        
+        # Below grabs the account username with Fortnite-API.
         response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
         try:
             clientUsername = response.json()['data']['account']['name']
         except:
             clientUsername = 'error'
 
+        # Accessing Query Profile to get locker data...
         response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
         )
         
-        #print(response.json())
+        # Created/Updated
         created = response.json()['profileChanges'][0]['profile']['created']
         created = created[:10]
         updated = response.json()['profileChanges'][0]['profile']['updated']
         updated = updated[:10]
-        print('bruh')
+
+        # Creates embed
         embed = discord.Embed(
             color = discord.Colour.red(),
             title=f'Welcome, {clientUsername}!'
@@ -247,15 +242,19 @@ async def login(ctx, auth:str = None):
         embed.add_field(name='Created at', value=created)
         embed.add_field(name='Last updated', value=updated)
 
+        # Uses query profile to grab UUID
         loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['loadouts'][0]
-        #for i in profileChanges[0].profile.stats.attributes.loadouts
+        
+        # Now, we load back into the token array and dump account name and loadout UUID. We do this by finding the author discord ID, which is already in the array.
         for i in json_object['auths']:
             if i['DiscordauthorID'] == str(DiscordauthorID):
-                print('Found client :)')
+                print('Found client :)') # Used to know we found client
                 i['loadoutUUID'] = loadoutUUID
                 i['accountName'] = clientUsername
                 json.dump(json_object, a_file, indent = 4)
-                print('added stuff')
+        
+        # Now, we are grabbing the author's locker data to retreive the current skin.
+        # We use the loadout UUID thats in the array.
 
         lockerdata = response.json()['profileChanges'][0]['profile']['items'][loadoutUUID]['attributes']['locker_slots_data']['slots']
         lockerskinID = lockerdata['Character']['items'][0]
@@ -263,12 +262,9 @@ async def login(ctx, auth:str = None):
         response = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?id={lockerskinID}')
         url = response.json()['data']['images']['icon']
         embed.set_thumbnail(url=url)
-    
-        #profileChanges[0].profile.items["b085ba91-2bdb-43c8-9a1a-01949ca040f9"]
-        #await ctx.send('test')
-        await ctx.send(embed=embed)
-        #a_file = open(f"auths.json", "w")
-        #json.dump(json_object, a_file, indent = 4)
+
+        await ctx.send(embed=embed) # Sends embed, user is logged in and added!
+
         
 @login.error
 async def loginerror(ctx, error):
@@ -789,48 +785,57 @@ async def vbucks(ctx):
             }
             )
 
-            embed = discord.Embed(
-                color = discord.Colour.blue(),
-                title = f"{name}'s V-Bucks"
-            )
+            try:
+                error = response.json()['errorMessage']
+                embed = discord.Embed(
+                    color = discord.Colour.red(),
+                    title='ERROR',
+                    description='Your token has most likely expired! Type /login <auth> to generate a new one.'
+                )
+                return await ctx.send(embed=embed)
+            except:
+                embed = discord.Embed(
+                    color = discord.Colour.blue(),
+                    title = f"{name}'s V-Bucks"
+                )
 
-            list_ = []
-            result = []
-            for i in response.json()['profileChanges'][0]['profile']['items']:
-                #print(i)
-                list_.append(i)
-            
-            for i in list_:
-                idlol = i
+                list_ = []
+                result = []
+                for i in response.json()['profileChanges'][0]['profile']['items']:
+                    #print(i)
+                    list_.append(i)
+                
+                for i in list_:
+                    idlol = i
 
-                templateID = response.json()['profileChanges'][0]['profile']['items'][idlol]['templateId']
-                if templateID.startswith('Currency:'):
-                    #print(idlol)
-                    platform = response.json()['profileChanges'][0]['profile']['items'][idlol]['attributes']['platform']
-                    quantity = response.json()['profileChanges'][0]['profile']['items'][idlol]['quantity']
-                    counter = list_.count(idlol)
-                    if counter >=2 or counter == 1:
-                        #print(f'Found {quantity} on {platform}')
-                        embed.add_field(
-                            name=f'{platform}',
-                            value=f'<:vbuck1:934263403441193030> {quantity} '
-                        )
-                        result.append(quantity)
-            
-            Sum = sum(result)
-            
-            amountPurchased = len(response.json()['profileChanges'][0]['profile']['stats']['attributes']['mtx_purchase_history']['purchases'])
-            
-            embed.description=f'Current Amount: <:vbuck1:934263403441193030> **{Sum}**'
-            embed.add_field(
-                name='Purchased Items',
-                value = f"{amountPurchased}"
-            )
+                    templateID = response.json()['profileChanges'][0]['profile']['items'][idlol]['templateId']
+                    if templateID.startswith('Currency:'):
+                        #print(idlol)
+                        platform = response.json()['profileChanges'][0]['profile']['items'][idlol]['attributes']['platform']
+                        quantity = response.json()['profileChanges'][0]['profile']['items'][idlol]['quantity']
+                        counter = list_.count(idlol)
+                        if counter >=2 or counter == 1:
+                            #print(f'Found {quantity} on {platform}')
+                            embed.add_field(
+                                name=f'{platform}',
+                                value=f'<:vbuck1:934263403441193030> {quantity} '
+                            )
+                            result.append(quantity)
+                
+                Sum = sum(result)
+                
+                amountPurchased = len(response.json()['profileChanges'][0]['profile']['stats']['attributes']['mtx_purchase_history']['purchases'])
+                
+                embed.description=f'Current Amount: <:vbuck1:934263403441193030> **{Sum}**'
+                embed.add_field(
+                    name='Purchased Items',
+                    value = f"{amountPurchased}"
+                )
 
 
-            return await ctx.send(
-                embed=embed
-            )
+                return await ctx.send(
+                    embed=embed
+                )
     
 
 @slash.slash(name='info', description='Account Info', guild_ids=testing_guilds)
@@ -1394,6 +1399,115 @@ async def generatelocker(ctx):
             await ctx.send(embed=embed, file=file)
             #await ctx.send('Heres your generated locker image',file=discord.File('test.png'))
                 
+@slash.slash(name='addfriend', description='Sends a friend request to a Epic Games account!', guild_ids=testing_guilds, options=[
+    create_option(
+        name='username',
+        description='The username of the friend you want to add',
+        option_type=3,
+        required=True
+    )
+])
+async def addfriend(ctx, username:str):
+
+
+
+    a_file = open(f"auths.json", "r")
+    json_object = json.load(a_file)
+    a_file.close()
+
+    DiscordauthorID = ctx.author.id
+
+    for i in json_object['auths']:
+        if i['DiscordauthorID'] == str(DiscordauthorID):
+            token = i['token']
+            accountID = i['accountID']
+
+            response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2?name={username}', headers=headerslmao)
+            if response.json()['status'] != 200:
+                embed = discord.Embed(
+                    color = discord.Colour.red(),
+                    title='ERROR',
+                    description='This account does not exist.'
+                )
+                return await ctx.send(embed=embed)
+
+            friendID = response.json()['data']['account']['id']
+            friendName = response.json()['data']['account']['name']
+            
+            
+            response = requests.post(f'https://friends-public-service-prod06.ol.epicgames.com/friends/api/public/friends/{accountID}/{friendID}', headers={"Authorization": f"bearer {token}"})
+
+            try:
+                errorCode = response.json()['errorCode']
+
+                if "errors.com.epicgames.common.authentication.token_verification_failed" in errorCode:
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title='ERROR',
+                        description='Your token has most likely expired! Type /login <auth> to generate a new one.'
+                    )
+                    return await ctx.send(embed=embed)
+                elif "errors.com.epicgames.friends.duplicate_friendship" in errorCode:
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title='ERROR',
+                        description='You are already friends with this user!'
+                    )
+                    return await ctx.send(embed=embed)
+                elif "errors.com.epicgames.friends.account_not_found" in errorCode:
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title='ERROR',
+                        description='This account does not exist.'
+                    )
+                    return await ctx.send(embed=embed)
+                elif "errors.com.epicgames.friends.cannot_friend_due_to_target_settings" in errorCode:
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title='ERROR',
+                        description='Can not send friend request due to users target settings.'
+                    )
+                    return await ctx.send(embed=embed)
+                elif "errors.com.epicgames.friends.incoming_friendships_limit_exceeded" in errorCode:
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title='ERROR',
+                        description='Can not send friend request due to users friendships has exceeded the max limit.'
+                    )
+                    return await ctx.send(embed=embed)
+                else:
+                    embed = discord.Embed(
+                        color = discord.Colour.red(),
+                        title='ERROR',
+                        description=f"UNKNOWN ERROR: *{errorCode}*"
+                    )
+                    return await ctx.send(embed=embed)
+            except:
+                embed = discord.Embed(
+                    color = discord.Colour.green(),
+                    title='Success!',
+                    description=f"Successfully sent a friend request to: **{friendName}**!"
+                )
+                return await ctx.send(embed=embed)
+
+def check_if_it_is_me(ctx):
+    return ctx.author.id == 776811214893875211
+    # Fevers, ral, stormzy, nickname, ender, jacobb, deviantionsz
+
+@slash.slash(name='logout_all_users', description='Logs out of all users accounts. ADMIN ONLY', guild_ids=testing_guilds)
+@commands.check(check_if_it_is_me)
+async def logoutall(ctx):
+
+    new_file = {
+        "version": "0.1",
+        "auths": []
+    }
+
+    a_file = open(f"auths.json", "w")
+    json.dump(new_file, a_file, indent = 4)
+
+    await ctx.send('Removed all users data and logged out of all accounts.')
+            
 
 #
 #
@@ -1425,5 +1539,5 @@ async def generatelocker(ctx):
 #
 #
 #
-client.run('')
+client.run('token')
 
