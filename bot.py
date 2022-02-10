@@ -15,8 +15,6 @@ from discord_slash.utils.manage_commands import create_option, create_permission
 from discord_slash.model import ButtonStyle, SlashCommandPermissionType
 from discord_slash.utils import manage_components
 
-import interactions
-from interactions import Button, ButtonStyle, SelectOption, SelectMenu
 
 import json
 import requests
@@ -39,6 +37,15 @@ async def on_ready():
 async def help(ctx):
     await ctx.send('Login to our bot using **/login <auth>**. Type "/" for a list of commands.')
 
+def test_user_auth(DiscordauthorID, data):
+    a_file = open(f"auths.json", "r")
+    json_object = json.load(a_file)
+    a_file.close()
+
+    for i in json_object['auths']:
+        if i['DiscordauthorID'] == str(DiscordauthorID):
+            data = i
+            return(data)
 
 @slash.slash(name='logout', description='Remove your Epic Games account from our system.', guild_ids=testing_guilds) # Logout command removes everything except discord author ID
 async def logout(ctx):
@@ -132,10 +139,8 @@ async def login(ctx, auth:str = None):
             if x['DiscordauthorID'] == str(DiscordauthorID):
     
                 response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2/{accountID}', headers=headerslmao)
-                try:
-                    clientUsername = response.json()['data']['account']['name']
-                except:
-                    clientUsername = 'error'
+                clientUsername = response.json()['data']['account']['name']
+            
 
                 response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
                     "Authorization": f"Bearer {token}",
@@ -173,8 +178,8 @@ async def login(ctx, auth:str = None):
                 #for i in profileChanges[0].profile.stats.attributes.loadouts
                 for i in json_object['auths']:
                     if i['DiscordauthorID'] == str(DiscordauthorID):
-                        print('a')
-                        print('Found client :)')
+                        #print('a')
+                        print('Found client :)') # If this happens, the user is already logged in.
                         i['loadoutUUID'] = loadoutUUID
 
                 lockerdata = response.json()['profileChanges'][0]['profile']['items'][loadoutUUID]['attributes']['locker_slots_data']['slots']
@@ -533,8 +538,6 @@ async def gift(ctx, offerid:str, user:str, price:int):
 
     DiscordauthorID = ctx.author.id
     response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2?name={user}', headers=headerslmao)
-    user_name = response.json()['data']['account']['name']
-    user_id = response.json()['data']['account']['id']
 
     if response.json()['status'] != 200:
         error = response.json()['error']
@@ -544,6 +547,9 @@ async def gift(ctx, offerid:str, user:str, price:int):
             description=f'{error}'
         )
         return await ctx.send(embed=embed)
+
+    user_name = response.json()['data']['account']['name']
+    user_id = response.json()['data']['account']['id']
     
 
     for i in json_object['auths']:
@@ -859,7 +865,7 @@ async def info(ctx):
                 "Content-Type": "application/json"
             }
             )
-            print(response.json)
+
             embed = discord.Embed(
                 color = discord.Colour.blue(),
                 title = f"{name}'s Account Info"
@@ -1508,8 +1514,58 @@ async def logoutall(ctx):
 
     await ctx.send('Removed all users data and logged out of all accounts.')
             
+@slash.slash(name='test_auth', description='Test your Fortnite Auth to see if your token works.', guild_ids=testing_guilds)
+async def testauth(ctx):
+    a_file = open(f"auths.json", "r")
+    json_object = json.load(a_file)
+    a_file.close()
+
+    DiscordauthorID = ctx.author.id
+
+    for i in json_object['auths']:
+        if i['DiscordauthorID'] == str(DiscordauthorID):
+            token = i['token']
+            accountID = i['accountID']
+
+            response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json={"text": {}}, headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                }
+            )
+            #print(response.json())
+            try:
+                error = response.json()['errorMessage']
+                embed = discord.Embed(
+                    color = discord.Colour.red(),
+                    title='ERROR',
+                    description='Your token has most likely expired! Type **/login <auth>** to generate a new one.'
+                )
+                return await ctx.send(embed=embed)
+            except:
+                embed = discord.Embed(
+                    color = discord.Colour.green(),
+                    title='SUCCESS!',
+                    description='Your token is still valid. If you want to generate a new one, type **/login <auth>**'
+                )
+                return await ctx.send(embed=embed)
+
+@slash.slash(name='test_command', description='a command to test stuff', guild_ids=testing_guilds)
+async def test_command(ctx):
+    DiscordauthorID = ctx.author.id
+    data = ''
+    test = test_user_auth(DiscordauthorID, data)
+
+    s1 = json.dumps(test)
+    response = json.loads(s1)
+    print(response['token'])
+
+    
+    
+    # We have now gotten the user auth. Now, we authenticate the auth token.
+
 
 #
+
 #
 #
 #
