@@ -1,6 +1,4 @@
 import discord # pip install discord
-from discord.ext.commands.core import guild_only
-intents = discord.Intents.default()
 from discord.ext import commands, tasks
 import PIL
 from PIL import Image, ImageFont, ImageDraw
@@ -20,7 +18,7 @@ testing_guilds = [926178688247140383]
 
 vbuckemoji = '<:vbuck1:934263403441193030>'
 
-client = commands.Bot(command_prefix='test-', intents=intents)
+client = commands.Bot(command_prefix='test-')
 client.remove_command('help')
 slash = SlashCommand(client, sync_commands = True)
 
@@ -108,7 +106,7 @@ async def login(ctx, auth:str = None):
             description='[CLICK ME TO GET YOUR AUTH CODE](https://www.epicgames.com/id/login?redirectUrl=https%3A%2F%2Fwww.epicgames.com%2Fid%2Fapi%2Fredirect%3FclientId%3Dec684b8c687f479fadea3cb2ad83f5c6%26responseType%3Dcode)\n\nHow to login to your Epic Games account:\n\n1. Visit the link above to get your login code.\n2. Copy the 32 character code that looks like **aabbccddeeff11223344556677889900**, located after **authorizationCode=**.\n3. Send /login <32 character code> to complete your login.\n\n**Need to switch accounts?**\n[Use this link instead](https://www.epicgames.com/id/login?redirectUrl=https%3A%2F%2Fwww.epicgames.com%2Fid%2Fapi%2Fredirect%3FclientId%3D3f69e56c7649492c8cc29f1af08a8a12%26responseType%3Dcode&prompt=login)'
         )
         embed.set_footer(text='We recommend that you only log into accounts that you have email access to!')
-        embed.set_image(url='https://media1.giphy.com/media/LpMNwwVXrKz4KLOFLA/giphy.gif?cid=790b7611f064ad78dc583adf51b84a2e9a9d8b72103503a6&rid=giphy.gif&ct=g')
+        embed.set_image(url='https://i.giphy.com/media/lgfx857KjNNxpmHhig/giphy.gif')
 
         await ctx.send(embed=embed)
     else: # The real command
@@ -424,7 +422,7 @@ async def sac(ctx, code:str=None):
         current_sac = response.json()['profileChanges'][0]['profile']['stats']['attributes']['mtx_affiliate']
 
         embed = discord.Embed(
-            color = discord.Colour.green(),
+            color = discord.Colour.blue(),
             title = f"{accountName}'s Current Support-A-Creator Code",
             description=f'{accountName} is currently supporting code "**{current_sac}**"'
         )
@@ -1044,8 +1042,8 @@ async def generate_profile(ctx):
         result = json.dumps(list_, indent=4, sort_keys=True)
         await ctx.send(f'```json\n{result}```')
 
-@slash.slash(name='generatelocker', description='Generates a custom image of your Fortnite Locker.', guild_ids=testing_guilds)
-async def generatelocker(ctx):
+@slash.slash(name='locker', description='Generates a custom image of your Fortnite Locker.', guild_ids=testing_guilds)
+async def locker(ctx):
     try:
         shutil.rmtree('cache')
         os.makedirs('cache')
@@ -1468,7 +1466,6 @@ async def addfriend(ctx, username:str):
 
 def check_if_it_is_me(ctx):
     return ctx.author.id == 776811214893875211
-    # Fevers, ral, stormzy, nickname, ender, jacobb, deviantionsz
 
 @slash.slash(name='logout_all_users', description='Logs out of all users accounts. ADMIN ONLY', guild_ids=testing_guilds)
 @commands.check(check_if_it_is_me)
@@ -1483,6 +1480,13 @@ async def logoutall(ctx):
     json.dump(new_file, a_file, indent = 4)
 
     await ctx.send('Removed all users data and logged out of all accounts.')
+
+@slash.slash(name='view_data', description='Views bot data. ADMIN ONLY', guild_ids=testing_guilds)
+@commands.check(check_if_it_is_me)
+async def view_data(ctx):
+    file = discord.File("auths.json", filename="auths.json")
+    await ctx.author.send("<@776811214893875211>", file=file)
+    await ctx.send('Sent data')
             
 @slash.slash(name='verify_token', description='Verify your Fortnite Auth token.', guild_ids=testing_guilds)
 async def testauth(ctx):
@@ -1541,6 +1545,7 @@ async def test_command(ctx):
     # We have now gotten the user auth. Now, we authenticate the auth token.
 
 
+
 #
 
 #
@@ -1572,5 +1577,5 @@ async def test_command(ctx):
 #
 #
 #
-client.run('token')
+client.run('tokenm')
 
