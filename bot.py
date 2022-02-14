@@ -12,12 +12,13 @@ import time
 from discord_slash import SlashCommand, SlashContext
 from discord_slash.utils.manage_commands import create_choice, create_option
 
-
 import json
 import requests
 import asyncio
 
 testing_guilds = [926178688247140383]
+
+vbuckemoji = '<:vbuck1:934263403441193030>'
 
 client = commands.Bot(command_prefix='test-', intents=intents)
 client.remove_command('help')
@@ -107,6 +108,7 @@ async def login(ctx, auth:str = None):
             description='[CLICK ME TO GET YOUR AUTH CODE](https://www.epicgames.com/id/login?redirectUrl=https%3A%2F%2Fwww.epicgames.com%2Fid%2Fapi%2Fredirect%3FclientId%3Dec684b8c687f479fadea3cb2ad83f5c6%26responseType%3Dcode)\n\nHow to login to your Epic Games account:\n\n1. Visit the link above to get your login code.\n2. Copy the 32 character code that looks like **aabbccddeeff11223344556677889900**, located after **authorizationCode=**.\n3. Send /login <32 character code> to complete your login.\n\n**Need to switch accounts?**\n[Use this link instead](https://www.epicgames.com/id/login?redirectUrl=https%3A%2F%2Fwww.epicgames.com%2Fid%2Fapi%2Fredirect%3FclientId%3D3f69e56c7649492c8cc29f1af08a8a12%26responseType%3Dcode&prompt=login)'
         )
         embed.set_footer(text='We recommend that you only log into accounts that you have email access to!')
+        embed.set_image(url='https://media1.giphy.com/media/LpMNwwVXrKz4KLOFLA/giphy.gif?cid=790b7611f064ad78dc583adf51b84a2e9a9d8b72103503a6&rid=giphy.gif&ct=g')
 
         await ctx.send(embed=embed)
     else: # The real command
@@ -293,16 +295,9 @@ async def loginerror(ctx, error):
         description='Enter item Offer ID (Must include v2:/)',
         option_type=3,
         required=True
-    ),
-    create_option(
-        name='price',
-        description='Enter the correct price for the item.',
-        option_type=3,
-        required=True
     )
 ], guild_ids=testing_guilds)
-async def purchaseitem(ctx, offerid:str, price:int):
-    print('hello')
+async def purchaseitem(ctx, offerid:str):
     DiscordauthorID = ctx.author.id
     data = ''
     test = test_user_auth(DiscordauthorID, data)
@@ -315,17 +310,55 @@ async def purchaseitem(ctx, offerid:str, price:int):
     token = i['token']
     accountID = i['accountID']
     accountName = i['accountName']
+
+    valid_ID = False
+    
+    shop_response = requests.get('https://api.nitestats.com/v1/epic/store')
+    for i in shop_response.json()['storefronts']:
+        for i in i['catalogEntries']:
+            if offerid in i['offerId']:
+                print('Found offer ID!')
+                devName = i['devName']
+                try:
+                    finalPrice = i['finalPrice']
+                    regularPrice = i['regularPrice']
+                except:
+                    
+                    try:
+                        finalPrice = abs(i['dynamicBundleInfo']['discountedBasePrice']) + i['dynamicBundleInfo']['floorPrice']
+                    except:
+                        finalPrice = "N/A"
+                    
+                    regularPrice = "N/A"
+                items = len(i['itemGrants'])
+                valid_ID = True
+
+                embed = discord.Embed(
+                    color = discord.Colour.blue(),
+                    title='Found Item!',
+                    description=f'Dev Name: **{devName}**\n\nItems included in offer: **{items}**\n\nRegular Price: **{regularPrice}** {vbuckemoji}\n\nFinal Price: **{finalPrice}** {vbuckemoji}'
+                )
+                embed.set_footer(text='Made with the Fortnite Interactions discord bot')
+                await ctx.send(embed=embed)
+
+    if valid_ID != True:
+        embed = discord.Embed(
+            color = discord.Colour.red(),
+            title='ERROR',
+            description='The offer ID you have entered is not currently in the Epic Store!\n\nType **/offerids** for a list of the current Offer IDs.'
+        )
+        return await ctx.send(embed=embed)
+
     response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/PurchaseCatalogEntry?profileId=common_core', json= {
         "offerId": offerid,
         "purchaseQuantity": 1,
         "currency": "MtxCurrency",
-        "expectedTotalPrice": price,
+        "expectedTotalPrice": finalPrice,
         "gameContext": "",
         "currencySubType": ""
     }, headers={
         "Authorization": f"bearer {token}",
         "Content-Type": "application/json"
-
     })
 
     #print(response.json())
@@ -338,6 +371,7 @@ async def purchaseitem(ctx, offerid:str, price:int):
         )
         return await ctx.send(embed=embed)
     except:
+
         data = response.json()['profileChanges'][0]['profile']['stats']['attributes']['mtx_purchase_history']['purchases']
         for i in data:
             if i['offerId'] == offerid:
@@ -353,7 +387,7 @@ async def purchaseitem(ctx, offerid:str, price:int):
         embed = discord.Embed(
             color = discord.Colour.blue(),
             title="{accountName}'s Purchases",
-            description='Successfully purchased *{result} cosmetic(s)** for <:vbuck1:934263403441193030> {vbuckspaid}!\nCode used: **{codeused}**'
+            description=f'Successfully purchased *{result} cosmetic(s)** for <:vbuck1:934263403441193030> {vbuckspaid}!\nCode used: **{codeused}**'
         )
         await ctx.send(embed=embed)
 
