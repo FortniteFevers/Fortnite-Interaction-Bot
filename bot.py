@@ -14,7 +14,7 @@ import json
 import requests
 import asyncio
 
-testing_guilds = [926178688247140383]
+testing_guilds = []
 
 vbuckemoji = '<:vbuck1:934263403441193030>'
 
@@ -22,7 +22,7 @@ client = commands.Bot(command_prefix='test-')
 client.remove_command('help')
 slash = SlashCommand(client, sync_commands = True)
 
-headerslmao = {'Authorization': '60bcad5e-fe7c-4734-92a9-986b81f99444'}
+headerslmao = {'Authorization': ''}
 
 @client.event
 async def on_ready():
