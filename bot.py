@@ -30,7 +30,7 @@ vbuckemoji = '<:vbuck1:934263403441193030>'
 
 client = interactions.Client(token="YOUR_TOKEN", default_scope=YOUR_GUILD_ID)
 
-headerslmao = {'Authorization': '60bcad5e-fe7c-4734-92a9-986b81f99444'}
+headerslmao = {'Authorization': 'YOUR_HEADER'}
 
 @client.event
 async def on_ready():
