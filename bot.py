@@ -1,28 +1,36 @@
+from cgi import test
+from tempfile import template
+from turtle import textinput
 import discord # pip install discord
-from discord.ext import commands, tasks
 import PIL
 from PIL import Image, ImageFont, ImageDraw
 import os
 import shutil
 import time
+#from discord import ui
 
 # pip install -U discord-py-slash-command
-from discord_slash import SlashCommand, SlashContext
-from discord_slash.utils.manage_commands import create_choice, create_option
 
 import json
+from matplotlib import testing
 import requests
 import asyncio
 
-testing_guilds = []
+import interactions
+
+from interactions import (
+    Modal,
+    TextInput,
+    TextStyleType
+)
+
+testing_guilds = 926178688247140383
 
 vbuckemoji = '<:vbuck1:934263403441193030>'
 
-client = commands.Bot(command_prefix='test-')
-client.remove_command('help')
-slash = SlashCommand(client, sync_commands = True)
+client = interactions.Client(token="YOUR_TOKEN", default_scope=YOUR_GUILD_ID)
 
-headerslmao = {'Authorization': ''}
+headerslmao = {'Authorization': '60bcad5e-fe7c-4734-92a9-986b81f99444'}
 
 @client.event
 async def on_ready():
@@ -41,9 +49,12 @@ async def looping_status():
         await client.change_presence(activity=discord.Game(name=f'with {users} Fortnite Accounts!'))
         await asyncio.sleep(15)
         
-
-@slash.slash(name='help', description='Help!')
-async def help(ctx):
+@client.command(name='ping', description='pong!')
+async def ping(ctx: interactions.CommandContext):
+    await ctx.send(f'My ping is {round(client.latency * 1000)}ms!')
+    
+@client.command(name='help', description='Help!')
+async def help(ctx: interactions.CommandContext):
     await ctx.send('Login to our bot using **/login <auth>**. Type "/" for a list of commands.')
 
 def test_user_auth(DiscordauthorID, data):
@@ -56,8 +67,8 @@ def test_user_auth(DiscordauthorID, data):
             data = i
             return(data)
 
-@slash.slash(name='logout', description='Remove your Epic Games account from our system.') # Logout command removes everything except discord author ID
-async def logout(ctx):
+@client.command(name='logout', description='Remove your Epic Games account from our system.') # Logout command removes everything except discord author ID
+async def logout(ctx: interactions.CommandContext):
     a_file = open(f"auths.json", "r")
     json_object = json.load(a_file)
     a_file.close()
@@ -66,6 +77,8 @@ async def logout(ctx):
         try:
             if element['DiscordauthorID'] == str(ctx.author.id):
                 #del element['DiscordauthorID']
+                token = element['token']
+                response = requests.delete(f'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/sessions/kill/{token}')
                 del element['token']
                 del element['accountID']
                 del element['loadoutUUID']
@@ -83,22 +96,43 @@ async def logout(ctx):
     embed = discord.Embed(
         color = 0x00ff44,
         title='SUCCESS!',
-        description='Your account has successfully been removed within our system. If you wish to use the bot again, please use **/login <auth>**'
+        description='Your account has successfully been removed within our system. We also have killed your access token. If you wish to use the bot again, please use **/login <auth>**'
     )
     await ctx.send(embed=embed)
     return await ctx.author.send('Sad to see you go!\nWe have removed your tokens from our system. If you wish to use the bot again, please use **/login <auth>**')
 
+@client.command(name='kill_token', description='Kills an active access token.')
+async def kill_token(ctx: interactions.CommandContext):
+    DiscordauthorID = ctx.author.id
+    data = ''
+    test = test_user_auth(DiscordauthorID, data)
 
-@slash.slash(name='login', description='Log into your Epic Games account.', options=[
-    create_option(
-        name='auth',
-        description='32-character Auth Code',
-        option_type=3,
-        required=False
+    s1 = json.dumps(test)
+    i = json.loads(s1)
+
+    accessToken = i['token']
+
+    response = requests.delete(f'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/sessions/kill/{accessToken}')
+    embed = discord.Embed(
+        color = 0x00ff44,
+        title='SUCCESS!',
+        description='Your token has been killed. If you want to generate a new one, please use **/login <auth>**'
     )
-])
+    await ctx.send(embed=embed)
+
+@client.command(name='login', description='Log into your Epic Games account.', 
+    options = [
+        interactions.Option(
+            name='auth',
+            description='32-character Auth Code',
+            type=interactions.OptionType.STRING,
+            required=False
+        ),
+    ],
+)
+
 #@commands.cooldown(1, 30, commands.BucketType.user)
-async def login(ctx, auth:str = None):
+async def login(ctx: interactions.CommandContext, auth:str = None):
     if auth is None:
         embed = discord.Embed(
             color = discord.Colour.blue(),
@@ -184,7 +218,7 @@ async def login(ctx, auth:str = None):
                 embed.add_field(name='Last updated', value=updated)
 
                 loadoutUUID = response.json()['profileChanges'][0]['profile']['stats']['attributes']['loadouts'][0]
-                print(loadoutUUID)
+                #print(loadoutUUID)
                 #for i in profileChanges[0].profile.stats.attributes.loadouts
                 for i in json_object['auths']:
                     if i['DiscordauthorID'] == str(DiscordauthorID):
@@ -281,21 +315,21 @@ async def login(ctx, auth:str = None):
         await ctx.send(embed=embed) # Sends embed, user is logged in and added!
 
         
-@login.error
-async def loginerror(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        em = discord.Embed(title=f"Slow it down bro!",description=f"Try again in {error.retry_after:.2f}s.", color=discord.Colour.red())
-        await ctx.send(embed=em)
+#@login.error
+#async def loginerror(ctx, error):
+#    if isinstance(error, commands.CommandOnCooldown):
+#        em = discord.Embed(title=f"Slow it down bro!",description=f"Try again in {error.retry_after:.2f}s.", color=discord.Colour.red())
+#        await ctx.send(embed=em)
 
-@slash.slash(name='purchaseitem', description='Purchase an item from the current shop!',options=[
-    create_option(
+@client.command(name='purchaseitem', description='Purchase an item from the current shop!',options=[
+    interactions.Option(
         name='offerid',
         description='Enter item Offer ID (Must include v2:/)',
-        option_type=3,
+        type=interactions.OptionType.STRING,
         required=True
     )
-], guild_ids=testing_guilds)
-async def purchaseitem(ctx, offerid:str):
+])
+async def purchaseitem(ctx: interactions.CommandContext, offerid:str):
     DiscordauthorID = ctx.author.id
     data = ''
     test = test_user_auth(DiscordauthorID, data)
@@ -389,15 +423,15 @@ async def purchaseitem(ctx, offerid:str):
         )
         await ctx.send(embed=embed)
 
-@slash.slash(name='sac', description='Change oyour support-a-creator code!',options=[
-    create_option(
+@client.command(name='sac', description='Change oyour support-a-creator code!',options=[
+    interactions.Option(
         name='code',
         description='Support-A-Creator Code',
-        option_type=3,
+        type=interactions.OptionType.STRING,
         required=False
     )
-], guild_ids=testing_guilds)
-async def sac(ctx, code:str=None):
+])
+async def sac(ctx: interactions.CommandContext, code:str=None):
     DiscordauthorID = ctx.author.id
     data = ''
     test = test_user_auth(DiscordauthorID, data)
@@ -474,27 +508,27 @@ async def sac(ctx, code:str=None):
             await ctx.send(embed=embed)
 
 
-@slash.slash(name='gift', description='Gift an item thats currently in the shop!',options=[
-    create_option(
+@client.command(name='gift', description='Gift an item thats currently in the shop!',options=[
+    interactions.Option(
         name='offerid',
         description='Item OfferID',
-        option_type=3,
+        type=interactions.OptionType.STRING,
         required=True
     ),
-    create_option(
+    interactions.Option(
         name='price',
         description='The price of the item (MUST ENTER REAL PRICE OR IT WILL NOT WORK)',
-        option_type=3,
+        type=interactions.OptionType.STRING,
         required=True
     ),
-    create_option(
+    interactions.Option(
         name='user',
         description='The username of the account you want to gift to',
-        option_type=3,
+        type=interactions.OptionType.STRING,
         required=True
     )
-], guild_ids=testing_guilds)
-async def gift(ctx, offerid:str, user:str, price:int):
+])
+async def gift(ctx: interactions.CommandContext, offerid:str, user:str, price:int):
     response = requests.get(f'https://fortnite-api.com/v2/stats/br/v2?name={user}', headers=headerslmao)
 
     if response.json()['status'] != 200:
@@ -545,7 +579,8 @@ async def gift(ctx, offerid:str, user:str, price:int):
             title='ERROR',
             description='Your token has most likely expired! Type /login <auth> to generate a new one.'
         )
-        return await ctx.send(embed=embed)
+        await ctx.send(embed=embed)
+        return await ctx.send(error)
     except:
         embed = discord.Embed(
             color = discord.Colour.green(),
@@ -555,65 +590,65 @@ async def gift(ctx, offerid:str, user:str, price:int):
         await ctx.send(embed=embed)
         print(f'Gifted {offerid} to {user_id} - from {accountID}')
 
-@slash.slash(name='changeplatform', description='Changes the Mtx Platform used for purchases in the item shop.', options=[
-    create_option(
+@client.command(name='changeplatform', description='Changes the Mtx Platform used for purchases in the item shop.', options=[
+    interactions.Option(
         name='platform',
         description='The platform that will be used for purchases.',
-        option_type=3,
+        type=interactions.OptionType.STRING,
         required=True,
         choices=[
-            create_choice(
+            interactions.Choice(
                 name='Epic',
                 value='Epic'
             ),
-            create_choice(
+            interactions.Choice(
                 name='PSN',
                 value='PSN'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Epic',
                 value='Epic'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Live',
                 value='Live'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Shared',
                 value='Shared'
             ),
-            create_choice(
+            interactions.Choice(
                 name='EpicPC',
                 value='EpicPC'
             ),
-            create_choice(
+            interactions.Choice(
                 name='EpicPCKorea',
                 value='EpicPCKorea'
             ),
-            create_choice(
+            interactions.Choice(
                 name='IOSAppStore',
                 value='IOSAppStore'
             ),
-            create_choice(
+            interactions.Choice(
                 name='EpicAndroid',
                 value='EpicAndroid'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Nintendo',
                 value='Nintendo'
             ),
-            create_choice(
+            interactions.Choice(
                 name='WeGame',
                 value='WeGame'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Samsung',
                 value='Samsung'
             )     
         ]
     )
-], guild_ids=testing_guilds)
-async def changeplatform(ctx, platform:str):
+])
+async def changeplatform(ctx: interactions.CommandContext, platform:str):
     DiscordauthorID = ctx.author.id
     data = ''
     test = test_user_auth(DiscordauthorID, data)
@@ -641,7 +676,7 @@ async def changeplatform(ctx, platform:str):
         embed=embed
     )
 
-@slash.slash(name='offerids', description='Returns with a list of the current Offer IDs. Used to purchase/gift a cosmetic.', guild_ids=testing_guilds)
+@client.command(name='offerids', description='Returns with a list of the current Offer IDs. Used to purchase/gift a cosmetic.')
 async def offerids(ctx):
     sectionjson = 'name'
 
@@ -731,8 +766,8 @@ async def offerids(ctx):
 
     #await ctx.send(embed=embed)
 
-@slash.slash(name='vbucks', description='View your current Fortnite V-Bucks amount and where it has came from', guild_ids=testing_guilds)
-async def vbucks(ctx):
+@client.command(name='vbucks', description='View your current Fortnite V-Bucks amount and where it has came from')
+async def vbucks(ctx: interactions.CommandContext):
     DiscordauthorID = ctx.author.id
     data = ''
     test = test_user_auth(DiscordauthorID, data)
@@ -805,8 +840,8 @@ async def vbucks(ctx):
         )
     
 
-@slash.slash(name='info', description='Account Info', guild_ids=testing_guilds)
-async def info(ctx):
+@client.command(name='info', description='Account Info')
+async def info(ctx: interactions.CommandContext):
     DiscordauthorID = ctx.author.id
     data = ''
     test = test_user_auth(DiscordauthorID, data)
@@ -879,63 +914,63 @@ async def info(ctx):
     )
 
 
-@slash.slash(name='equip', description='Equips a item that you currently own to a slot.', guild_ids=testing_guilds, options=[
-    create_option(
+@client.command(name='equip', description='Equips a item that you currently own to a slot.', options=[
+    interactions.Option(
         name='category',
         description='The catagory of the item that you want to equip',
-        option_type=3,
+        type=interactions.OptionType.STRING,
         required=True,
         choices=[
-            create_choice(
+            interactions.Choice(
                 name='Character',
                 value='Character'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Dance',
                 value='Dance'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Epic',
                 value='Epic'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Glider',
                 value='Glider'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Pickaxe',
                 value='Pickaxe'
             ),
-            create_choice(
+            interactions.Choice(
                 name='Backpack',
                 value='Backpack'
             ),
-            create_choice(
+            interactions.Choice(
                 name='LoadingScreen',
                 value='LoadingScreen'
             ),
-            create_choice(
+            interactions.Choice(
                 name='MusicPack',
                 value='MusicPack'
             ),
-            create_choice(
+            interactions.Choice(
                 name='ItemWrap',
                 value='ItemWrap'
             ),
-            create_choice(
+            interactions.Choice(
                 name='SkyDiveContrail',
                 value='SkyDiveContrail'
             )
         ]
     ),
-    create_option(
+    interactions.Option(
         name='cosmetic',
         description='The cosmetic that you want to equip',
-        option_type=3,
+        type=interactions.OptionType.STRING,
         required=True
     )
 ],)
-async def equip(ctx, category:str, cosmetic:str):
+async def equip(ctx: interactions.CommandContext, category:str, cosmetic:str):
     fresponse = requests.get(f'https://fortnite-api.com/v2/cosmetics/br/search?name={cosmetic}')
     cosmeticID = fresponse.json()['data']['id']
     cosmeticName = fresponse.json()['data']['name']
@@ -972,8 +1007,8 @@ async def equip(ctx, category:str, cosmetic:str):
     )
     await ctx.send(embed=embed)
 
-@slash.slash(name='generate_profile',  description='Creates a json file of your current loadout', guild_ids=testing_guilds)
-async def generate_profile(ctx):
+@client.command(name='generate_profile',  description='Creates a json file of your current loadout')
+async def generate_profile(ctx: interactions.CommandContext):
     DiscordauthorID = ctx.author.id
     data = ''
     test = test_user_auth(DiscordauthorID, data)
@@ -1042,8 +1077,8 @@ async def generate_profile(ctx):
         result = json.dumps(list_, indent=4, sort_keys=True)
         await ctx.send(f'```json\n{result}```')
 
-@slash.slash(name='locker', description='Generates a custom image of your Fortnite Locker.', guild_ids=testing_guilds)
-async def locker(ctx):
+@client.command(name='locker', description='Generates a custom image of your Fortnite Locker.')
+async def locker(ctx: interactions.CommandContext):
     try:
         shutil.rmtree('cache')
         os.makedirs('cache')
@@ -1376,15 +1411,15 @@ async def locker(ctx):
     await ctx.send(embed=embed, file=file)
     #await ctx.send('Heres your generated locker image',file=discord.File('test.png'))
                 
-@slash.slash(name='addfriend', description='Sends a friend request to a Epic Games account!', guild_ids=testing_guilds, options=[
-    create_option(
+@client.command(name='addfriend', description='Sends a friend request to a Epic Games account!', options=[
+    interactions.Option(
         name='username',
         description='The username of the friend you want to add',
-        option_type=3,
+        type=interactions.OptionType.STRING,
         required=True
     )
 ])
-async def addfriend(ctx, username:str):
+async def addfriend(ctx: interactions.CommandContext, username:str):
 
     DiscordauthorID = ctx.author.id
     data = ''
@@ -1413,7 +1448,7 @@ async def addfriend(ctx, username:str):
 
     try:
         errorCode = response.json()['errorCode']
-
+    
         if "errors.com.epicgames.common.authentication.token_verification_failed" in errorCode:
             embed = discord.Embed(
                 color = discord.Colour.red(),
@@ -1467,29 +1502,29 @@ async def addfriend(ctx, username:str):
 def check_if_it_is_me(ctx):
     return ctx.author.id == 776811214893875211
 
-@slash.slash(name='logout_all_users', description='Logs out of all users accounts. ADMIN ONLY', guild_ids=testing_guilds)
-@commands.check(check_if_it_is_me)
-async def logoutall(ctx):
-
-    new_file = {
-        "version": "0.1",
-        "auths": []
-    }
-
-    a_file = open(f"auths.json", "w")
-    json.dump(new_file, a_file, indent = 4)
-
-    await ctx.send('Removed all users data and logged out of all accounts.')
-
-@slash.slash(name='view_data', description='Views bot data. ADMIN ONLY', guild_ids=testing_guilds)
-@commands.check(check_if_it_is_me)
-async def view_data(ctx):
-    file = discord.File("auths.json", filename="auths.json")
-    await ctx.author.send("<@776811214893875211>", file=file)
-    await ctx.send('Sent data')
+#@client.command(name='logout_all_users', description='Logs out of all users accounts. ADMIN ONLY')
+#@commands.check(check_if_it_is_me)
+#async def logoutall(ctx):
+#
+#    new_file = {
+#        "version": "0.1",
+#        "auths": []
+#    }
+#
+#    a_file = open(f"auths.json", "w")
+#    json.dump(new_file, a_file, indent = 4)
+#
+#    await ctx.send('Removed all users data and logged out of all accounts.')
+#
+#@slash.slash(name='view_data', description='Views bot data. ADMIN ONLY', guild_ids=testing_guilds)
+#@commands.check(check_if_it_is_me)
+#async def view_data(ctx):
+#    file = discord.File("auths.json", filename="auths.json")
+#    await ctx.author.send("<@776811214893875211>", file=file)
+#    await ctx.send('Sent data')
             
-@slash.slash(name='verify_token', description='Verify your Fortnite Auth token.', guild_ids=testing_guilds)
-async def testauth(ctx):
+@client.command(name='verify_token', description='Verify your Fortnite Auth token.')
+async def testauth(ctx: interactions.CommandContext):
     DiscordauthorID = ctx.author.id
     data = ''
     test = test_user_auth(DiscordauthorID, data)
@@ -1530,21 +1565,211 @@ async def testauth(ctx):
         )
         return await ctx.send(embed=embed)
 
-@slash.slash(name='test_command', description='a command to test stuff', guild_ids=testing_guilds)
-async def test_command(ctx):
+
+@client.event
+async def on_component(ctx):
+    author = ctx.author.id
+    if str(author) in ctx.custom_id:
+        await ctx.send(f'You pressed {ctx.custom_id}! :D :D :D')
+
+
+#@slash.slash(name='test_command', description='a command to test stuff', guild_ids=testing_guilds)
+#async def test_command(ctx):
+#    author = ctx.author.id
+#    buttons = [
+#        create_button(style=ButtonStyle.green, label="A green button", custom_id=f'button1-{author}', ),
+#        create_button(style=ButtonStyle.blue, label="A blue button", custom_id=f'button2-{author}'),
+#        create_button(style=ButtonStyle.URL, label='This is a URL!', url='https://lucas7yoshi.com/amogus/')
+#    ]
+#    action_row = create_actionrow(*buttons)
+#
+#    await ctx.send(components=[action_row])
+
+    
+@client.command(name='download_profile', description='Download data for your Fortnite Account.', options=[
+    interactions.Option(
+            name='profile',
+            description='The profile that will be downloaded',
+            type=interactions.OptionType.STRING,
+            required=True,
+            choices=[
+                interactions.Choice(
+                    name='athena',
+                    value='athena'
+                ),
+                interactions.Choice(
+                    name='campaign',
+                    value='campaign'
+                ),
+                interactions.Choice(
+                    name='common_core',
+                    value='common_core'
+                )
+            ]
+        )
+])
+async def download_profile(ctx: interactions.CommandContext, profile:str):
     DiscordauthorID = ctx.author.id
     data = ''
     test = test_user_auth(DiscordauthorID, data)
 
     s1 = json.dumps(test)
-    response = json.loads(s1)
-    print(response['token'])
+    i = json.loads(s1)
 
+    accountID = i['accountID']
+    token = i['token']
+
+    response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId={profile}',  json= {
+        
+    }, headers={
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    )
     
-    
-    # We have now gotten the user auth. Now, we authenticate the auth token.
+    with open(f'profiles/QueryProfile_{profile}.json', 'w') as x:
+        json.dump(response.json(), x, indent = 4)
+
+    file = discord.File(f'profiles/QueryProfile_{profile}.json', filename=f"QueryProfile_{profile}.json")
+    await ctx.send('Heres your data!', file=file)
+
+@client.command(name='victorycrown', description='View your Victory Crown data!')
+async def victorycrown(ctx: interactions.CommandContext):
+    await ctx.defer()
+    DiscordauthorID = ctx.author.id
+    data = ''
+    test = test_user_auth(DiscordauthorID, data)
+
+    s1 = json.dumps(test)
+    i = json.loads(s1)
+
+    token = i['token']
+    accountID = i['accountID']
+    accountName = i['accountName']
+
+    response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=athena',  json= {
+        
+    }, headers={
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    )
+
+    embed=discord.Embed(
+        color = 0x00ff0b,
+        title=f"{accountName}'s Victory Crowns"
+    )
+
+    start = time.time()
+    for tempID in response.json()['profileChanges'][0]['profile']['items']:
+        templateId = response.json()['profileChanges'][0]['profile']['items'][tempID]['templateId']
+        print('aaaa')
+        if templateId == 'VictoryCrown:defaultvictorycrown':
+            print('oh')
+            end = time.time()
+            hascrown = response.json()['profileChanges'][0]['profile']['items'][tempID]['attributes']['victory_crown_account_data']['data_is_valid_for_mcp']
+            totalcrownwins = response.json()['profileChanges'][0]['profile']['items'][tempID]['attributes']['victory_crown_account_data']['total_royal_royales_achieved_count']
+            allgameswcrown = totalcrownwins = response.json()['profileChanges'][0]['profile']['items'][tempID]['attributes']['victory_crown_account_data']['total_victory_crowns_bestowed_count']
+
+            embed.add_field(name='Has Crown?', value=f'{hascrown}', inline=True)
+            embed.add_field(name='Crown Wins', value=f'{totalcrownwins}', inline=True)
+            embed.add_field(name='All games worn with a crown', value=f'{allgameswcrown}', inline=True)
+            embed.set_thumbnail(url='https://static.wikia.nocookie.net/fortnite/images/2/26/Victory_Crown_-_Item_-_Fortnite.png/revision/latest/scale-to-width-down/512?cb=20211206160559')
+            await ctx.send(embed=embed)
+            await ctx.send(f'Took me {round(end - start, 2)} seconds to do this')
+            break
+                
+
+@client.command(name='last_purchase', description="Gets info on you're last Fortnite purchase.")
+async def last_purchase(ctx: interactions.CommandContext):
+    DiscordauthorID = ctx.author.id
+    data = ''
+    test = test_user_auth(DiscordauthorID, data)
+
+    s1 = json.dumps(test)
+    i = json.loads(s1)
+
+    token = i['token']
+    accountID = i['accountID']
+    accountName = i['accountName']
+
+    response = requests.post(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountID}/client/QueryProfile?profileId=common_core',  json= {
+        
+    }, headers={
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    )
+
+    embed = discord.Embed(
+        color=discord.Colour.blue(),
+        title=f"{accountName}'s Last Purchase"
+    )
+
+    jsonelement = response.json()['profileChanges'][0]['profile']['stats']['attributes']['mtx_purchase_history']['purchases'][-1]
+
+    embed.add_field(
+        name='Offer ID',
+        value=f"{jsonelement['offerId']}"
+    )
+
+    embed.add_field(
+        name='Purchase Date',
+        value=f"{jsonelement['purchaseDate'][:10]}"
+    )
+
+    embed.add_field(
+        name='Number of Items Purchased',
+        value=f"{len(jsonelement['lootResult'])}"
+    )
+
+    embed.add_field(
+        name='Price',
+        value=f"{jsonelement['totalMtxPaid']} {vbuckemoji}"
+    )
+
+    try:
+        embed.add_field(
+            name='Support-A-Creator Info',
+            value=f"Supported: {jsonelement['metadata']['mtx_affiliate']}"
+        )
+    except:
+        pass
+
+    return await ctx.send(embed=embed)
+
+@client.command(name='creative_history', description="Returns all recently played creative islands", options=[
+    interactions.Option(
+        name='limit',
+        description='num of islands',
+        type=interactions.OptionType.STRING,
+        required=False
+    )
+])
+async def creative_history(ctx: interactions.CommandContext):
+    DiscordauthorID = ctx.author.id
+    data = ''
+    test = test_user_auth(DiscordauthorID, data)
+
+    s1 = json.dumps(test)
+    i = json.loads(s1)
+
+    token = i['token']
+    accountID = i['accountID']
+    accountName = i['accountName']
+
+    response = requests.get(f'https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/creative/history/{accountID}', json={}, headers=
+    {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    )
 
 
+#@client.modal("mod_app_form")
+#async def modal_response(ctx, response: str):
+#    await ctx.send(f"You wrote: {response}", ephemeral=True)
+
 
 #
 
@@ -1577,5 +1802,4 @@ async def test_command(ctx):
 #
 #
 #
-client.run('tokenm')
-
+client.start()
